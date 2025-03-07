@@ -1,0 +1,40 @@
+{
+  "name": "shift-scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@types/xlsx": "^0.0.35",
+    "antd": "^5.23.2",
+    "cra-template-typescript": "1.2.0",
+    "file-saver": "^2.0.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-scripts": "4.0.3",
+    "xlsx": "^0.18.5"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
