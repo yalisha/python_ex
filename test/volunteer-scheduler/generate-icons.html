@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>PWA图标生成器</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      text-align: center;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    .icon-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .icon {
+      margin: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>志愿者排班系统 - PWA图标生成器</h1>
+  <p>点击下方按钮生成所有所需的PWA图标</p>
+
+  <button id="generate-icons">生成PWA图标</button>
+
+  <div class="icon-container" id="icons"></div>
+
+  <!-- 用于绘制图标的Canvas -->
+  <canvas id="iconCanvas"></canvas>
+
+  <script>
+    document.getElementById('generate-icons').addEventListener('click', generateIcons);
+
+    function generateIcons() {
+      const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+      const canvas = document.getElementById('iconCanvas');
+      const ctx = canvas.getContext('2d');
+      const iconContainer = document.getElementById('icons');
+
+      iconContainer.innerHTML = '';
+
+      sizes.forEach(size => {
+        // 设置Canvas大小
+        canvas.width = size;
+        canvas.height = size;
+
+        // 绘制背景
+        ctx.fillStyle = '#0d6efd';
+        ctx.fillRect(0, 0, size, size);
+
+        // 添加文字
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `bold ${size / 3}px Arial`;
+        ctx.fillText('排班', size / 2, size / 2);
+
+        // 将Canvas转为图片
+        const dataUrl = canvas.toDataURL('image/png');
+
+        // 创建下载链接
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'icon';
+
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.width = size;
+        img.height = size;
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = dataUrl;
+        downloadLink.download = `icon-${size}x${size}.png`;
+        downloadLink.innerHTML = `<br>下载 ${size}x${size} 图标`;
+
+        iconDiv.appendChild(img);
+        iconDiv.appendChild(downloadLink);
+        iconContainer.appendChild(iconDiv);
+      });
+    }
+  </script>
+</body>
+
+</html>

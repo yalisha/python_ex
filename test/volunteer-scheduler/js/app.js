@@ -447,6 +447,26 @@ function initPhase1() {
 function initPhase2() {
   const phase2Prev = document.getElementById('phase2-prev');
   const phase2Next = document.getElementById('phase2-next');
+  const bulkSetCount = document.getElementById('bulk-set-count');
+  const applyBulkSetBtn = document.getElementById('apply-bulk-set');
+
+  // 批量设置班次人数按钮点击事件
+  applyBulkSetBtn.addEventListener('click', function () {
+    try {
+      const count = parseInt(bulkSetCount.value) || 0;
+      console.log('批量设置所有班次人数为:', count);
+
+      // 设置所有班次的人数
+      document.querySelectorAll('.shift-count').forEach(input => {
+        input.value = count;
+      });
+
+      alert(`已将所有班次人数设置为 ${count}`);
+    } catch (error) {
+      console.error('批量设置班次人数失败:', error);
+      alert('设置失败，请重试');
+    }
+  });
 
   // 上一步按钮点击事件
   phase2Prev.addEventListener('click', function () {
