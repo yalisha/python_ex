@@ -4,8 +4,8 @@ let shiftRequirements = {}; // 每个班次需要的志愿者人数
 let scheduleData = {}; // 排班结果数据
 let shiftClassRequirements = {}; // 每个班级需要的志愿者人数
 let maxShiftsPerVolunteer = 0; // 每个志愿者最大排班次数限制
+// 当前正在编辑的课表数据
 let currentTimetableData = {
-  // 当前正在编辑的课表数据
   name: '',
   class: '',
   availability: [],
@@ -377,7 +377,6 @@ function initPhase1() {
       ],
       [
         '', // 空行，用于用户填写
-        '',
         '',
         '',
         '',
@@ -1475,42 +1474,58 @@ function toggleCellAvailability(cell) {
 
 // 从时间表添加志愿者
 function addVolunteerFromTimetable() {
-  // 收集可用时间
-  const availability = [];
-  document.querySelectorAll('.timetable-cell.available').forEach(cell => {
-    const day = parseInt(cell.dataset.day);
-    const period = parseInt(cell.dataset.period);
-    availability.push({ day, period });
-  });
+  try {
+    console.log('开始执行addVolunteerFromTimetable函数');
+    console.log('当前课表数据:', currentTimetableData);
 
-  if (availability.length === 0) {
-    alert('请至少选择一个可用时间段');
-    return;
+    // 收集可用时间
+    const availability = [];
+    document.querySelectorAll('.timetable-cell.available').forEach(cell => {
+      const day = parseInt(cell.dataset.day);
+      const period = parseInt(cell.dataset.period);
+      availability.push({ day, period });
+    });
+
+    console.log('收集到的可用时间段:', availability);
+
+    if (availability.length === 0) {
+      alert('请至少选择一个可用时间段');
+      return;
+    }
+
+    // 创建志愿者对象
+    const volunteer = {
+      id: Date.now(),
+      name: currentTimetableData.name,
+      class: currentTimetableData.class,
+      availability: availability,
+    };
+
+    console.log('即将添加的志愿者数据:', volunteer);
+
+    // 添加到志愿者列表
+    volunteers.push(volunteer);
+    updateVolunteerList();
+    console.log('志愿者已添加到列表并更新显示');
+
+    // 重置表单和预览
+    document.getElementById('timetable-import-form').reset();
+    document.getElementById('timetable-preview-container').style.display = 'none';
+    console.log('表单和预览已重置');
+
+    // 显示提示
+    alert(`成功添加志愿者：${volunteer.name}，共有 ${availability.length} 个可用时间段`);
+
+    // 清空当前数据
+    currentTimetableData = {
+      name: '',
+      class: '',
+      availability: [],
+    };
+    console.log('当前课表数据已清空');
+    console.log('addVolunteerFromTimetable函数执行完毕');
+  } catch (error) {
+    console.error('在addVolunteerFromTimetable函数中发生错误:', error);
+    alert('添加志愿者时出错：' + error.message);
   }
-
-  // 创建志愿者对象
-  const volunteer = {
-    id: Date.now(),
-    name: currentTimetableData.name,
-    class: currentTimetableData.class,
-    availability: availability,
-  };
-
-  // 添加到志愿者列表
-  volunteers.push(volunteer);
-  updateVolunteerList();
-
-  // 重置表单和预览
-  document.getElementById('timetable-import-form').reset();
-  document.getElementById('timetable-preview-container').style.display = 'none';
-
-  // 显示提示
-  alert(`成功添加志愿者：${volunteer.name}，共有 ${availability.length} 个可用时间段`);
-
-  // 清空当前数据
-  currentTimetableData = {
-    name: '',
-    class: '',
-    availability: [],
-  };
 }
