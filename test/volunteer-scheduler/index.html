@@ -97,6 +97,19 @@
                       <small class="text-muted">支持JPG、PNG等常见图片格式</small>
                     </div>
 
+                    <div class="alert alert-info mb-3">
+                      <strong>课表映射说明：</strong>
+                      <p class="mb-1">系统将12节课自动映射为6大节，映射规则如下：</p>
+                      <ul class="mb-0 small">
+                        <li>原课表的第1-2节 → 系统中的第1大节</li>
+                        <li>原课表的第3-4节 → 系统中的第2大节</li>
+                        <li>原课表的第5-6节 → 系统中的第3大节</li>
+                        <li>原课表的第7-8节 → 系统中的第4大节</li>
+                        <li>原课表的第9-10节 → 系统中的第5大节</li>
+                        <li>原课表的第11-12节 → 系统中的第6大节</li>
+                      </ul>
+                    </div>
+
                     <button type="button" id="analyze-timetable" class="btn btn-primary">导入课表并编辑</button>
                   </form>
 
@@ -123,7 +136,10 @@
                       </table>
                     </div>
 
-                    <button type="button" id="confirm-timetable" class="btn btn-success mt-2">确认并添加志愿者</button>
+                    <div class="d-flex justify-content-between mt-3">
+                      <button type="button" id="confirm-timetable" class="btn btn-success">确认并添加志愿者</button>
+                      <button type="button" id="continue-adding" class="btn btn-outline-primary">添加后继续导入下一位</button>
+                    </div>
                   </div>
                 </div>
               </div>

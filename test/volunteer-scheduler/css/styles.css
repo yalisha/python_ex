@@ -227,6 +227,16 @@ h1, h2, h3, h4, h5, h6 {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-weight: bold;
+    color: #721c24;
+}
+
+.timetable-cell.unavailable:hover small {
+    white-space: normal;
+    font-size: 10px;
+    overflow: visible;
+    position: relative;
+    z-index: 10;
 }
 
 #timetable-preview-container img {

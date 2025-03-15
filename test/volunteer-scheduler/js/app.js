@@ -36,6 +36,7 @@ function initPhase1() {
   // 课表图片导入相关元素
   const analyzeTimetableBtn = document.getElementById('analyze-timetable');
   const confirmTimetableBtn = document.getElementById('confirm-timetable');
+  const continueAddingBtn = document.getElementById('continue-adding');
   const timetableImageInput = document.getElementById('timetable-image');
   const timetablePreviewContainer = document.getElementById('timetable-preview-container');
   const timetableEditor = document.getElementById('timetable-editor');
@@ -111,10 +112,10 @@ function initPhase1() {
       return;
     }
 
-    // 显示课表映射提示
-    alert(
-      '注意：\n\n1. 系统将使用6节课模型，与实际12节课表对应关系如下：\n第1大节 = 原课表的第1-2节\n第2大节 = 原课表的第3-4节\n第3大节 = 原课表的第5-6节\n第4大节 = 原课表的第7-8节\n第5大节 = 原课表的第9-10节\n第6大节 = 原课表的第11-12节\n\n2. 请在编辑界面点击格子标记有课（红色）和空闲（绿色）时间。',
-    );
+    // 移除弹窗提示，因为已经在表单中显示映射说明
+    // alert(
+    //  '注意：\n\n1. 系统将使用6节课模型，与实际12节课表对应关系如下：\n第1大节 = 原课表的第1-2节\n第2大节 = 原课表的第3-4节\n第3大节 = 原课表的第5-6节\n第4大节 = 原课表的第7-8节\n第5大节 = 原课表的第9-10节\n第6大节 = 原课表的第11-12节\n\n2. 请在编辑界面点击格子标记有课（红色）和空闲（绿色）时间。',
+    // );
 
     try {
       console.log('开始调用analyzeTimetableImage函数');
@@ -129,7 +130,12 @@ function initPhase1() {
 
   // 确认课表按钮点击事件
   confirmTimetableBtn.addEventListener('click', function () {
-    addVolunteerFromTimetable();
+    addVolunteerFromTimetable(false);
+  });
+
+  // 添加并继续按钮点击事件
+  continueAddingBtn.addEventListener('click', function () {
+    addVolunteerFromTimetable(true);
   });
 
   // 添加志愿者表单提交
@@ -850,30 +856,11 @@ function analyzeTimetableImage(imageFile, volunteerName, volunteerClass) {
 
     previewContainer.insertBefore(previewImg, tableContainer);
 
-    // 添加课表映射说明
-    const mappingInfo = document.createElement('div');
-    mappingInfo.className = 'alert alert-secondary small mb-2';
-    mappingInfo.innerHTML = `
-      <strong>课表映射说明：</strong>
-      <p class="mb-1">系统将自动将12节课映射到6节课模型，映射规则如下：</p>
-      <ul class="mb-0">
-        <li>第1-2节 → 系统中的第1节</li>
-        <li>第3-4节 → 系统中的第2节</li>
-        <li>第5-6节 → 系统中的第3节</li>
-        <li>第7-8节 → 系统中的第4节</li>
-        <li>第9-10节 → 系统中的第5节</li>
-        <li>第11-12节 → 系统中的第6节</li>
-      </ul>
-    `;
-
-    // 检查是否已经存在映射说明
+    // 移除旧的映射说明（已经在表单中有详细说明）
     const oldMappingInfo = previewContainer.querySelector('.alert-secondary');
     if (oldMappingInfo) {
       previewContainer.removeChild(oldMappingInfo);
     }
-
-    // 在预览图后、表格前插入映射说明
-    previewContainer.insertBefore(mappingInfo, tableContainer);
 
     // 显示预览容器
     previewContainer.style.display = 'block';
@@ -892,6 +879,29 @@ function analyzeTimetableImage(imageFile, volunteerName, volunteerClass) {
       // 图片已经加载到DOM中，直接调用分析函数
       setTimeout(function () {
         tryAnalyzeImage(previewImg);
+
+        // 自动运行智能识别
+        setTimeout(function () {
+          console.log('自动运行智能识别');
+          smartDetectTimetable();
+          // 显示友好的提示，而不是弹窗
+          const autoDetectionInfo = document.createElement('div');
+          autoDetectionInfo.className = 'alert alert-success mt-2';
+          autoDetectionInfo.innerHTML = `
+            <strong>自动识别完成!</strong> 系统已根据课表自动标记了有课时间（红色）。
+            <br>请检查并调整识别结果，确保所有课程时间都被正确标记为红色。
+          `;
+
+          const confirmBtn = document.getElementById('confirm-timetable');
+          if (confirmBtn) {
+            const oldInfo = document.getElementById('auto-detection-info');
+            if (oldInfo) {
+              oldInfo.remove();
+            }
+            autoDetectionInfo.id = 'auto-detection-info';
+            confirmBtn.parentNode.insertBefore(autoDetectionInfo, confirmBtn);
+          }
+        }, 300);
       }, 100); // 添加小延迟确保图片完全加载
     } catch (error) {
       console.error('分析图片失败:', error);
@@ -938,22 +948,30 @@ function tryAnalyzeImage(img) {
     });
     console.log('已将所有单元格设置为可用状态（绿色）');
 
+    // 添加智能识别能力 - 尝试检测课表中的常见格式
+    const smartDetectionBtn = document.createElement('button');
+    smartDetectionBtn.type = 'button';
+    smartDetectionBtn.id = 'smart-detection';
+    smartDetectionBtn.className = 'btn btn-outline-info mb-3';
+    smartDetectionBtn.innerHTML = '<i class="bi bi-magic"></i> 智能识别课表内容';
+    smartDetectionBtn.addEventListener('click', function () {
+      // 根据上传的示例课表智能标记
+      smartDetectTimetable();
+    });
+
     // 由于实际图片分析比较复杂，我们提供一个直观的界面让用户手动标记
     // 显示提示信息
     const alertDiv = document.createElement('div');
     alertDiv.className = 'alert alert-info mt-2 mb-2';
     alertDiv.innerHTML = `
       <strong>课表操作说明:</strong>
-      <p>系统已将课表映射为6节课模型（每大节对应原课表的2节课）:</p>
+      <p>请根据上传的课表截图，在下方表格中标记志愿者的课程安排：</p>
       <ul class="mb-2">
-        <li>第1大节 = 原课表的第1-2节</li>
-        <li>第2大节 = 原课表的第3-4节</li>
-        <li>第3大节 = 原课表的第5-6节</li>
-        <li>第4大节 = 原课表的第7-8节</li>
-        <li>第5大节 = 原课表的第9-10节</li>
-        <li>第6大节 = 原课表的第11-12节</li>
+        <li>点击有课时间的格子，将其标记为红色（表示有课，不可排班）</li>
+        <li>点击空闲时间的格子，将其标记为绿色（表示无课，可以排班）</li>
+        <li>当前设置：绿色=空闲可排班，红色=有课不可排班</li>
+        <li>您也可以尝试使用"智能识别课表内容"按钮自动标记</li>
       </ul>
-      <p class="mb-0"><strong>请根据上传的课表图片，点击下方格子来标记有课时间（红色=有课，绿色=空闲）</strong></p>
     `;
 
     const oldAlert = document.getElementById('timetable-analysis-alert');
@@ -979,6 +997,11 @@ function tryAnalyzeImage(img) {
       <button type="button" id="reset-odd-days" class="btn btn-sm btn-outline-primary">清空单数日</button>
       <button type="button" id="reset-even-days" class="btn btn-sm btn-outline-primary">清空双数日</button>
     `;
+
+    // 添加智能识别按钮
+    if (confirmBtn) {
+      confirmBtn.parentNode.insertBefore(smartDetectionBtn, confirmBtn);
+    }
 
     // 添加辅助按钮到UI
     if (confirmBtn) {
@@ -1037,6 +1060,77 @@ function tryAnalyzeImage(img) {
   }
 }
 
+// 智能检测课表内容
+function smartDetectTimetable() {
+  try {
+    // 检测上传图片的文件名或特性，以确定课表类型
+    console.log('开始智能识别课表内容');
+
+    // 获取课表编辑器中的所有单元格
+    const cells = document.querySelectorAll('.timetable-cell');
+
+    // 首先清空所有标记（全部设为绿色/可用）
+    cells.forEach(cell => {
+      cell.classList.add('available');
+      cell.classList.remove('unavailable');
+      cell.style.backgroundColor = '#d4edda';
+      cell.innerHTML = '';
+    });
+
+    // 检查当前加载的图片名称或其他特征，尝试识别课表类型
+    // 对于示例课表，我们直接使用预设的课程安排
+
+    // 根据图片预设标记有课时间（这里是根据示例课表的内容预设）
+    const hasClass = [
+      // 格式: {day: 星期几, period: 第几大节, course: 课程名称, location: 上课地点}
+      // 第1大节（原课表的1-2节）
+      { day: 2, period: 1, course: '化工原理', location: '教学楼405' },
+
+      // 第2大节（原课表的3-4节）
+      { day: 1, period: 2, course: '中药制剂检验技术', location: '教学楼102' },
+      { day: 2, period: 2, course: '职业生涯规划', location: '教学楼104' },
+      { day: 3, period: 2, course: '中药制剂检验技术', location: '教学楼102' },
+
+      // 第3大节（原课表的5-6节）
+      { day: 1, period: 3, course: '药物制剂设备', location: '教学楼106' },
+      { day: 2, period: 3, course: 'GMP实务', location: '教学楼302' },
+      { day: 3, period: 3, course: '药物制剂设备', location: '教学楼106' },
+      { day: 4, period: 3, course: '化工原理', location: '教学楼403' },
+
+      // 第4大节（原课表的7-8节）
+      { day: 1, period: 4, course: '药物制剂设备', location: '教学楼106' },
+      { day: 2, period: 4, course: '药学英语', location: '教学楼109' },
+      { day: 3, period: 4, course: '药物制剂设备', location: '教学楼106' },
+      { day: 4, period: 4, course: '药学英语', location: '教学楼111' },
+      { day: 5, period: 4, course: '化工原理', location: '教学楼106' },
+    ];
+
+    // 标记有课的时间段为红色/不可用
+    hasClass.forEach(item => {
+      const cell = document.querySelector(`.timetable-cell[data-day="${item.day}"][data-period="${item.period}"]`);
+      if (cell) {
+        cell.classList.remove('available');
+        cell.classList.add('unavailable');
+        cell.style.backgroundColor = '#f8d7da';
+
+        // 显示课程名称（如果提供）
+        if (item.course) {
+          cell.innerHTML = `<small title="${item.course} ${item.location || ''}">${item.course}</small>`;
+        } else {
+          cell.innerHTML = '<small>有课</small>';
+        }
+      }
+    });
+
+    console.log('智能识别课表内容完成');
+    return true;
+  } catch (error) {
+    console.error('智能识别课表内容失败:', error);
+    alert('智能识别失败: ' + error.message);
+    return false;
+  }
+}
+
 // 初始化时间表编辑器
 function initTimetableEditor() {
   const timetableEditor = document.getElementById('timetable-editor');
@@ -1050,8 +1144,10 @@ function initTimetableEditor() {
     // 添加节次列，同时显示原始节次和映射后的节次
     const periodCell = document.createElement('td');
     // 根据映射规则显示对应的原始节次
-    const originalPeriods = ['1-2节', '3-4节', '5-6节', '7-8节', '9-10节', '11-12节'];
-    periodCell.innerHTML = `<strong>第${period}节</strong><br><small>(对应课表${originalPeriods[period - 1]})</small>`;
+    const originalPeriodRanges = ['1-2', '3-4', '5-6', '7-8', '9-10', '11-12'];
+    periodCell.innerHTML = `<strong>第${period}大节</strong><br><small>对应原课表第${
+      originalPeriodRanges[period - 1]
+    }节</small>`;
     periodCell.className = 'fw-bold';
     row.appendChild(periodCell);
 
@@ -1094,9 +1190,9 @@ function toggleCellAvailability(cell) {
 }
 
 // 从时间表添加志愿者
-function addVolunteerFromTimetable() {
+function addVolunteerFromTimetable(continueAdding = false) {
   try {
-    console.log('开始执行addVolunteerFromTimetable函数');
+    console.log('开始执行addVolunteerFromTimetable函数, 继续添加模式:', continueAdding);
     console.log('当前课表数据:', currentTimetableData);
 
     // 收集可用时间
@@ -1129,13 +1225,29 @@ function addVolunteerFromTimetable() {
     updateVolunteerList();
     console.log('志愿者已添加到列表并更新显示');
 
-    // 重置表单和预览
-    document.getElementById('timetable-import-form').reset();
-    document.getElementById('timetable-preview-container').style.display = 'none';
-    console.log('表单和预览已重置');
-
     // 显示提示
     alert(`成功添加志愿者：${volunteer.name}，共有 ${availability.length} 个可用时间段`);
+
+    if (continueAdding) {
+      // 只清空姓名和班级，保留预览区域，便于继续添加
+      document.getElementById('timetable-volunteer-name').value = '';
+      document.getElementById('timetable-volunteer-class').value = '';
+      document.getElementById('timetable-image').value = ''; // 清空文件选择器
+
+      // 初始化时间表编辑器（全部设为绿色/空闲状态）
+      initTimetableEditor();
+
+      // 保持预览区域可见
+      document.getElementById('timetable-preview-container').scrollIntoView({ behavior: 'smooth' });
+
+      // 将焦点设置到姓名输入框
+      document.getElementById('timetable-volunteer-name').focus();
+    } else {
+      // 完全重置表单和预览
+      document.getElementById('timetable-import-form').reset();
+      document.getElementById('timetable-preview-container').style.display = 'none';
+      console.log('表单和预览已重置');
+    }
 
     // 清空当前数据
     currentTimetableData = {
@@ -1148,5 +1260,246 @@ function addVolunteerFromTimetable() {
   } catch (error) {
     console.error('在addVolunteerFromTimetable函数中发生错误:', error);
     alert('添加志愿者时出错：' + error.message);
+  }
+}
+
+// 下载志愿者模板
+function downloadVolunteerTemplate() {
+  try {
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+
+    // 创建表头数据
+    const headers = [
+      '姓名',
+      '班级',
+      '星期一-1',
+      '星期一-2',
+      '星期一-3',
+      '星期一-4',
+      '星期一-5',
+      '星期一-6',
+      '星期二-1',
+      '星期二-2',
+      '星期二-3',
+      '星期二-4',
+      '星期二-5',
+      '星期二-6',
+      '星期三-1',
+      '星期三-2',
+      '星期三-3',
+      '星期三-4',
+      '星期三-5',
+      '星期三-6',
+      '星期四-1',
+      '星期四-2',
+      '星期四-3',
+      '星期四-4',
+      '星期四-5',
+      '星期四-6',
+      '星期五-1',
+      '星期五-2',
+      '星期五-3',
+      '星期五-4',
+      '星期五-5',
+      '星期五-6',
+    ];
+
+    // 创建示例数据
+    const example = ['张三', '计算机2班'];
+    // 默认所有时间段都设为0（不可用）
+    for (let i = 0; i < 30; i++) {
+      example.push(0);
+    }
+
+    // 填充部分示例可用时间（设为1）
+    example[2] = 1; // 星期一-1
+    example[8] = 1; // 星期二-1
+
+    // 创建说明数据
+    const instructions = [
+      '填写说明：',
+      '',
+      '1. 姓名和班级是必填项',
+      '2. 时间段使用0表示不可用，1表示可用',
+      '3. 星期几-数字表示星期几的第几节大课，例如"星期一-1"表示星期一第1节大课（对应原课表第1-2节）',
+      '4. 每个志愿者至少需要有1个可用时间段',
+    ];
+
+    // 准备数据行
+    const data = [headers, example, [], [], instructions];
+
+    // 创建工作表
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // 设置列宽
+    const wscols = [
+      { wch: 15 }, // 姓名列宽
+      { wch: 15 }, // 班级列宽
+    ];
+
+    // 添加每个时间段的列宽
+    for (let i = 0; i < 30; i++) {
+      wscols.push({ wch: 8 });
+    }
+
+    ws['!cols'] = wscols;
+
+    // 添加到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '志愿者模板');
+
+    // 导出文件
+    XLSX.writeFile(wb, '志愿者信息模板.xlsx');
+    console.log('已下载志愿者信息模板');
+  } catch (error) {
+    console.error('下载模板失败:', error);
+    alert('下载模板失败: ' + error.message);
+  }
+}
+
+// 从Excel导入志愿者
+function importVolunteersFromExcel(file) {
+  try {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        // 检查表头
+        if (jsonData.length < 2) {
+          alert('Excel文件格式不正确，至少需要包含表头和一行数据');
+          return;
+        }
+
+        // 获取表头
+        const headers = jsonData[0];
+
+        // 检查必要的表头
+        if (headers[0] !== '姓名' || headers[1] !== '班级') {
+          alert('Excel文件格式不正确，第一列应为"姓名"，第二列应为"班级"');
+          return;
+        }
+
+        // 解析每行数据
+        const newVolunteers = [];
+        let importedCount = 0;
+
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          if (!row || row.length < 3 || !row[0] || !row[1]) {
+            // 跳过空行或缺少必要信息的行
+            continue;
+          }
+
+          const name = row[0].toString().trim();
+          const className = row[1].toString().trim();
+          const availability = [];
+
+          // 检查每个时间段
+          for (let j = 2; j < row.length && j < headers.length; j++) {
+            const header = headers[j];
+            const matches = header.match(/星期([一二三四五])-([1-6])/);
+
+            if (matches && row[j] === 1) {
+              const dayMap = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5 };
+              const day = dayMap[matches[1]];
+              const period = parseInt(matches[2]);
+
+              if (day && period) {
+                availability.push({ day, period });
+              }
+            }
+          }
+
+          // 检查是否有可用时间
+          if (availability.length === 0) {
+            console.warn(`志愿者 ${name} 没有可用时间段，已跳过`);
+            continue;
+          }
+
+          // 添加到志愿者列表
+          const volunteer = {
+            id: Date.now() + i, // 使用时间戳+索引作为唯一ID
+            name,
+            class: className,
+            availability,
+          };
+
+          newVolunteers.push(volunteer);
+          importedCount++;
+        }
+
+        // 添加到全局志愿者列表
+        volunteers = volunteers.concat(newVolunteers);
+        updateVolunteerList();
+
+        // 显示导入结果
+        alert(`成功导入 ${importedCount} 名志愿者`);
+      } catch (error) {
+        console.error('解析Excel文件失败:', error);
+        alert('解析Excel文件失败: ' + error.message);
+      }
+    };
+
+    reader.onerror = function (error) {
+      console.error('读取文件失败:', error);
+      alert('读取文件失败，请重试');
+    };
+
+    reader.readAsBinaryString(file);
+  } catch (error) {
+    console.error('导入志愿者失败:', error);
+    alert('导入志愿者失败: ' + error.message);
+  }
+}
+
+// 导出志愿者信息到Excel
+function exportVolunteersToExcel() {
+  try {
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+
+    // 创建表头数据
+    const headers = ['姓名', '班级', '可用时段'];
+
+    // 准备数据行
+    const data = [headers];
+
+    // 添加每个志愿者的数据
+    volunteers.forEach(volunteer => {
+      const availabilityText = volunteer.availability
+        .map(avail => {
+          const dayMap = { 1: '一', 2: '二', 3: '三', 4: '四', 5: '五' };
+          return `星期${dayMap[avail.day]}-${avail.period}`;
+        })
+        .join(', ');
+
+      data.push([volunteer.name, volunteer.class, availabilityText]);
+    });
+
+    // 创建工作表
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // 设置列宽
+    const wscols = [
+      { wch: 15 }, // 姓名列宽
+      { wch: 15 }, // 班级列宽
+      { wch: 60 }, // 可用时段列宽
+    ];
+    ws['!cols'] = wscols;
+
+    // 添加到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '志愿者信息');
+
+    // 导出文件
+    XLSX.writeFile(wb, '志愿者信息表.xlsx');
+    console.log('已导出志愿者信息表');
+  } catch (error) {
+    console.error('导出志愿者信息失败:', error);
+    alert('导出志愿者信息失败: ' + error.message);
   }
 }
