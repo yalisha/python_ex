@@ -113,7 +113,7 @@ function initPhase1() {
 
     // 显示课表映射提示
     alert(
-      '注意：系统将自动将12节课映射到6节课模型（两节合并为一大节）。\n\n映射规则：\n第1-2节 → 系统中的第1节\n第3-4节 → 系统中的第2节\n第5-6节 → 系统中的第3节\n第7-8节 → 系统中的第4节\n第9-10节 → 系统中的第5节\n第11-12节 → 系统中的第6节',
+      '注意：\n\n1. 系统将使用6节课模型，与实际12节课表对应关系如下：\n第1大节 = 原课表的第1-2节\n第2大节 = 原课表的第3-4节\n第3大节 = 原课表的第5-6节\n第4大节 = 原课表的第7-8节\n第5大节 = 原课表的第9-10节\n第6大节 = 原课表的第11-12节\n\n2. 请在编辑界面点击格子标记有课（红色）和空闲（绿色）时间。',
     );
 
     try {
@@ -938,58 +938,23 @@ function tryAnalyzeImage(img) {
     });
     console.log('已将所有单元格设置为可用状态（绿色）');
 
-    // 从截图中识别到的课程 - 硬编码的示例课程
-    // 我们的系统使用6节课模型，需要进行映射
-    const detectedClasses = [
-      { day: 2, period: 1, class: '化工原理' }, // 周二第1-2节
-      { day: 2, period: 2, class: '化工原理' },
-      { day: 3, period: 3, class: '职业素养' }, // 周三第3-4节
-      { day: 3, period: 4, class: '职业素养' },
-      // ... 其他课程数据保持不变
-    ];
-    console.log(`检测到 ${detectedClasses.length} 个课程数据点`);
-
-    // 将12节课映射到我们的6节课模型（使用"两节算一大节"的规则）
-    const mappedClasses = [];
-
-    // 映射逻辑
-    detectedClasses.forEach(cls => {
-      let mappedPeriod;
-      if (cls.period <= 2) mappedPeriod = 1;
-      else if (cls.period <= 4) mappedPeriod = 2;
-      else if (cls.period <= 6) mappedPeriod = 3;
-      else if (cls.period <= 8) mappedPeriod = 4;
-      else if (cls.period <= 10) mappedPeriod = 5;
-      else mappedPeriod = 6;
-
-      // 添加到映射后的课程列表
-      if (!mappedClasses.some(c => c.day === cls.day && c.period === mappedPeriod)) {
-        mappedClasses.push({ day: cls.day, period: mappedPeriod, class: cls.class });
-      }
-    });
-    console.log(`映射后有 ${mappedClasses.length} 个课程`);
-
-    // 标记有课的时间段
-    let markedCells = 0;
-    mappedClasses.forEach(cls => {
-      const cell = document.querySelector(`.timetable-cell[data-day="${cls.day}"][data-period="${cls.period}"]`);
-      if (cell) {
-        // 将该时间段标记为不可用（有课）
-        cell.classList.remove('available');
-        cell.classList.add('unavailable');
-        cell.style.backgroundColor = '#f8d7da';
-        // 添加课程名称提示
-        cell.setAttribute('title', cls.class);
-        cell.innerHTML = `<small>${cls.class}</small>`;
-        markedCells++;
-      }
-    });
-    console.log(`标记了 ${markedCells} 个单元格为有课（红色）`);
-
+    // 由于实际图片分析比较复杂，我们提供一个直观的界面让用户手动标记
     // 显示提示信息
     const alertDiv = document.createElement('div');
     alertDiv.className = 'alert alert-info mt-2 mb-2';
-    alertDiv.innerHTML = `<strong>自动识别完成!</strong> 已将12节课表映射到6节课模型。绿色表示空闲时间，红色表示有课。点击格子可以切换状态。`;
+    alertDiv.innerHTML = `
+      <strong>课表操作说明:</strong>
+      <p>系统已将课表映射为6节课模型（每大节对应原课表的2节课）:</p>
+      <ul class="mb-2">
+        <li>第1大节 = 原课表的第1-2节</li>
+        <li>第2大节 = 原课表的第3-4节</li>
+        <li>第3大节 = 原课表的第5-6节</li>
+        <li>第4大节 = 原课表的第7-8节</li>
+        <li>第5大节 = 原课表的第9-10节</li>
+        <li>第6大节 = 原课表的第11-12节</li>
+      </ul>
+      <p class="mb-0"><strong>请根据上传的课表图片，点击下方格子来标记有课时间（红色=有课，绿色=空闲）</strong></p>
+    `;
 
     const oldAlert = document.getElementById('timetable-analysis-alert');
     if (oldAlert) {
@@ -1000,15 +965,75 @@ function tryAnalyzeImage(img) {
     const confirmBtn = document.getElementById('confirm-timetable');
     if (confirmBtn) {
       confirmBtn.parentNode.insertBefore(alertDiv, confirmBtn);
-      console.log('成功添加分析完成提示');
+      console.log('成功添加操作说明');
     } else {
       console.error('没有找到confirm-timetable按钮');
     }
 
+    // 添加辅助按钮，方便用户快速操作
+    const helpButtonsDiv = document.createElement('div');
+    helpButtonsDiv.className = 'mb-3 d-flex flex-wrap gap-2';
+    helpButtonsDiv.innerHTML = `
+      <button type="button" id="mark-all-available" class="btn btn-sm btn-success">全部标为空闲</button>
+      <button type="button" id="mark-all-unavailable" class="btn btn-sm btn-danger">全部标为有课</button>
+      <button type="button" id="reset-odd-days" class="btn btn-sm btn-outline-primary">清空单数日</button>
+      <button type="button" id="reset-even-days" class="btn btn-sm btn-outline-primary">清空双数日</button>
+    `;
+
+    // 添加辅助按钮到UI
+    if (confirmBtn) {
+      confirmBtn.parentNode.insertBefore(helpButtonsDiv, confirmBtn);
+
+      // 添加按钮事件处理
+      document.getElementById('mark-all-available').addEventListener('click', function () {
+        cells.forEach(cell => {
+          cell.classList.add('available');
+          cell.classList.remove('unavailable');
+          cell.style.backgroundColor = '#d4edda';
+          cell.innerHTML = '';
+        });
+      });
+
+      document.getElementById('mark-all-unavailable').addEventListener('click', function () {
+        cells.forEach(cell => {
+          cell.classList.remove('available');
+          cell.classList.add('unavailable');
+          cell.style.backgroundColor = '#f8d7da';
+          cell.innerHTML = '<small>有课</small>';
+        });
+      });
+
+      document.getElementById('reset-odd-days').addEventListener('click', function () {
+        cells.forEach(cell => {
+          const day = parseInt(cell.dataset.day);
+          if (day % 2 === 1) {
+            // 单数日
+            cell.classList.add('available');
+            cell.classList.remove('unavailable');
+            cell.style.backgroundColor = '#d4edda';
+            cell.innerHTML = '';
+          }
+        });
+      });
+
+      document.getElementById('reset-even-days').addEventListener('click', function () {
+        cells.forEach(cell => {
+          const day = parseInt(cell.dataset.day);
+          if (day % 2 === 0) {
+            // 双数日
+            cell.classList.add('available');
+            cell.classList.remove('unavailable');
+            cell.style.backgroundColor = '#d4edda';
+            cell.innerHTML = '';
+          }
+        });
+      });
+    }
+
     console.log('tryAnalyzeImage函数执行完成');
   } catch (error) {
-    console.error('图像分析失败:', error);
-    alert('自动识别失败，请手动选择空余时间: ' + error.message);
+    console.error('初始化课表编辑器失败:', error);
+    alert('初始化课表编辑器失败: ' + error.message);
   }
 }
 
