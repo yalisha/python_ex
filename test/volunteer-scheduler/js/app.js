@@ -20,42 +20,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // 加载已保存的数据
   loadSavedData();
-
-  // 添加课表分析按钮的点击事件
-  document.getElementById('analyze-timetable').addEventListener('click', function () {
-    const nameInput = document.getElementById('timetable-volunteer-name');
-    const classInput = document.getElementById('timetable-volunteer-class');
-    const imageInput = document.getElementById('timetable-image');
-
-    // 检查表单数据
-    if (!nameInput.value.trim()) {
-      alert('请输入志愿者姓名');
-      nameInput.focus();
-      return;
-    }
-
-    if (!classInput.value.trim()) {
-      alert('请输入志愿者班级');
-      classInput.focus();
-      return;
-    }
-
-    if (!imageInput.files || imageInput.files.length === 0) {
-      alert('请选择课表图片');
-      return;
-    }
-
-    // 显示课表映射提示
-    alert(
-      '注意：系统将自动将12节课映射到6节课模型（两节合并为一大节）。\n\n映射规则：\n第1-2节 → 系统中的第1节\n第3-4节 → 系统中的第2节\n第5-6节 → 系统中的第3节\n第7-8节 → 系统中的第4节\n第9-10节 → 系统中的第5节\n第11-12节 → 系统中的第6节',
-    );
-
-    // 分析课表
-    analyzeTimetableImage(imageInput.files[0], nameInput.value, classInput.value);
-  });
-
-  // 添加确认并添加志愿者按钮的点击事件
-  document.getElementById('confirm-timetable').addEventListener('click', addVolunteerFromTimetable);
 });
 
 // 初始化第一阶段：志愿者信息
@@ -67,6 +31,7 @@ function initPhase1() {
   const importVolunteersBtn = document.getElementById('import-volunteers');
   const exportVolunteersBtn = document.getElementById('export-volunteers');
   const volunteerFileInput = document.getElementById('volunteer-file');
+  const clearAllDataBtn = document.getElementById('clear-all-data');
 
   // 课表图片导入相关元素
   const analyzeTimetableBtn = document.getElementById('analyze-timetable');
@@ -74,6 +39,42 @@ function initPhase1() {
   const timetableImageInput = document.getElementById('timetable-image');
   const timetablePreviewContainer = document.getElementById('timetable-preview-container');
   const timetableEditor = document.getElementById('timetable-editor');
+
+  // 清空所有数据按钮点击事件
+  clearAllDataBtn.addEventListener('click', function () {
+    if (confirm('确定要清空所有数据吗？此操作不可恢复！')) {
+      // 清空所有数据
+      volunteers = [];
+      shiftRequirements = {};
+      scheduleData = {};
+      shiftClassRequirements = {};
+      maxShiftsPerVolunteer = 0;
+
+      // 重置当前课表数据
+      currentTimetableData = {
+        name: '',
+        class: '',
+        availability: [],
+      };
+
+      // 清空localStorage中的数据
+      localStorage.removeItem('volunteer-schedule');
+      localStorage.removeItem('volunteer-shift-counts');
+
+      // 更新界面
+      updateVolunteerList();
+
+      // 清空表单
+      volunteerForm.reset();
+      document.getElementById('timetable-import-form').reset();
+
+      // 隐藏课表预览
+      timetablePreviewContainer.style.display = 'none';
+
+      // 显示提示信息
+      alert('所有数据已清空！');
+    }
+  });
 
   // 下载模板按钮点击事件
   downloadTemplateBtn.addEventListener('click', function () {
@@ -108,6 +109,11 @@ function initPhase1() {
       alert('请填写志愿者姓名和班级');
       return;
     }
+
+    // 显示课表映射提示
+    alert(
+      '注意：系统将自动将12节课映射到6节课模型（两节合并为一大节）。\n\n映射规则：\n第1-2节 → 系统中的第1节\n第3-4节 → 系统中的第2节\n第5-6节 → 系统中的第3节\n第7-8节 → 系统中的第4节\n第9-10节 → 系统中的第5节\n第11-12节 → 系统中的第6节',
+    );
 
     analyzeTimetableImage(timetableImageInput.files[0], volunteerName, volunteerClass);
   });
@@ -371,9 +377,6 @@ function initPhase1() {
       ],
       [
         '', // 空行，用于用户填写
-        '',
-        '',
-        '',
         '',
         '',
         '',
@@ -1203,13 +1206,6 @@ if (loadSavedData()) {
     localStorage.removeItem('volunteer-schedule');
   }
 }
-
-// 课表识别相关变量
-let currentTimetableData = {
-  name: '',
-  class: '',
-  availability: [],
-};
 
 // 分析课表图片
 function analyzeTimetableImage(imageFile, volunteerName, volunteerClass) {
