@@ -2,6 +2,8 @@
 let volunteers = []; // 志愿者列表
 let shiftRequirements = {}; // 每个班次需要的志愿者人数
 let scheduleData = {}; // 排班结果数据
+let shiftClassRequirements = {}; // 每个班级需要的志愿者人数
+let maxShiftsPerVolunteer = 0; // 每个志愿者最大排班次数限制
 
 // DOM 加载完成后执行
 document.addEventListener('DOMContentLoaded', function () {
@@ -45,7 +47,9 @@ function initPhase1() {
     e.preventDefault();
 
     const name = document.getElementById('volunteer-name').value.trim();
-    if (!name) return;
+    const className = document.getElementById('volunteer-class').value.trim();
+
+    if (!name || !className) return;
 
     // 收集志愿者可用时间
     const availability = [];
@@ -64,6 +68,7 @@ function initPhase1() {
     const volunteer = {
       id: Date.now(), // 使用时间戳作为唯一ID
       name,
+      class: className,
       availability,
     };
 
@@ -78,22 +83,57 @@ function initPhase1() {
   function updateVolunteerList() {
     volunteerList.innerHTML = '';
 
+    // 尝试获取排班次数数据
+    let shiftCounts = {};
+    try {
+      const savedShiftCounts = localStorage.getItem('volunteer-shift-counts');
+      if (savedShiftCounts) {
+        shiftCounts = JSON.parse(savedShiftCounts);
+      }
+    } catch (error) {
+      console.error('无法加载排班次数数据', error);
+    }
+
     volunteers.forEach(volunteer => {
       const li = document.createElement('li');
-      li.className = 'list-group-item';
+      li.className = 'list-group-item d-flex justify-content-between align-items-center';
 
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = volunteer.name;
+      // 志愿者基本信息区
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'volunteer-info';
 
+      // 名称和班级信息
+      const nameElem = document.createElement('div');
+      nameElem.className = 'fw-bold';
+      nameElem.textContent = volunteer.name;
+
+      const classElem = document.createElement('div');
+      classElem.className = 'text-muted small';
+      classElem.textContent = `班级: ${volunteer.class}`;
+
+      infoDiv.appendChild(nameElem);
+      infoDiv.appendChild(classElem);
+
+      // 可用时段信息
       const availabilityInfo = document.createElement('span');
-      availabilityInfo.className = 'badge bg-info';
+      availabilityInfo.className = 'badge bg-info ms-2';
       availabilityInfo.textContent = `${volunteer.availability.length} 个可用时段`;
+      infoDiv.appendChild(availabilityInfo);
 
+      // 显示已排班次数（如果有）
+      if (shiftCounts[volunteer.id]) {
+        const shiftCountBadge = document.createElement('span');
+        shiftCountBadge.className = 'badge bg-success ms-2';
+        shiftCountBadge.textContent = `已排 ${shiftCounts[volunteer.id]} 次班`;
+        infoDiv.appendChild(shiftCountBadge);
+      }
+
+      // 操作按钮区
       const actionDiv = document.createElement('div');
       actionDiv.className = 'volunteer-actions';
 
       const editBtn = document.createElement('button');
-      editBtn.className = 'btn btn-sm btn-warning';
+      editBtn.className = 'btn btn-sm btn-warning me-1';
       editBtn.textContent = '编辑';
       editBtn.addEventListener('click', () => editVolunteer(volunteer));
 
@@ -105,8 +145,7 @@ function initPhase1() {
       actionDiv.appendChild(editBtn);
       actionDiv.appendChild(deleteBtn);
 
-      li.appendChild(nameSpan);
-      li.appendChild(availabilityInfo);
+      li.appendChild(infoDiv);
       li.appendChild(actionDiv);
 
       volunteerList.appendChild(li);
@@ -116,6 +155,7 @@ function initPhase1() {
   // 编辑志愿者
   function editVolunteer(volunteer) {
     document.getElementById('volunteer-name').value = volunteer.name;
+    document.getElementById('volunteer-class').value = volunteer.class;
 
     // 清除所有选中状态
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
@@ -146,6 +186,7 @@ function initPhase1() {
     // 准备表头数据
     const headers = [
       '志愿者姓名',
+      '志愿者班级',
       '星期一-第1节',
       '星期一-第2节',
       '星期一-第3节',
@@ -181,73 +222,111 @@ function initPhase1() {
     // 添加注释和说明行
     const data = [
       ['志愿者排班系统 - 志愿者信息模板'],
-      ["请在下方填写志愿者姓名和可用时间（在对应时间段填入'是'表示可用）"],
-      [],
+      ["请在下方填写志愿者姓名、班级和可用时间（在对应时间段填入'是'表示可用，留空表示不可用）"],
+      ['请务必填写班级信息，每个志愿者必须有对应的班级'],
+      ['—————————————————————————————————————————————————————————————————————————'],
       headers,
       [
-        '张三',
-        '是',
-        '',
-        '是',
-        '',
-        '是',
-        '',
-        '',
-        '是',
-        '',
-        '',
-        '是',
-        '',
-        '是',
-        '',
-        '是',
-        '',
-        '是',
-        '',
-        '',
-        '',
-        '是',
-        '',
-        '是',
-        '',
-        '是',
-        '',
-        '是',
-        '是',
-        '',
-        '',
+        '张三', // 姓名
+        '药剂3班', // 班级
+        '是', // 星期一-第1节
+        '', // 星期一-第2节
+        '是', // 星期一-第3节
+        '', // 星期一-第4节
+        '是', // 星期一-第5节
+        '', // 星期一-第6节
+        '', // 星期二-第1节
+        '是', // 星期二-第2节
+        '', // 星期二-第3节
+        '', // 星期二-第4节
+        '是', // 星期二-第5节
+        '', // 星期二-第6节
+        '是', // 星期三-第1节
+        '', // 星期三-第2节
+        '是', // 星期三-第3节
+        '', // 星期三-第4节
+        '是', // 星期三-第5节
+        '', // 星期三-第6节
+        '', // 星期四-第1节
+        '', // 星期四-第2节
+        '是', // 星期四-第3节
+        '', // 星期四-第4节
+        '是', // 星期四-第5节
+        '', // 星期四-第6节
+        '是', // 星期五-第1节
+        '', // 星期五-第2节
+        '是', // 星期五-第3节
+        '是', // 星期五-第4节
+        '', // 星期五-第5节
+        '', // 星期五-第6节
       ],
       [
-        '李四',
+        '李四', // 姓名
+        '药剂4班', // 班级
+        '', // 星期一-第1节
+        '是', // 星期一-第2节
+        '', // 星期一-第3节
+        '是', // 星期一-第4节
+        '', // 星期一-第5节
+        '是', // 星期一-第6节
+        '是', // 星期二-第1节
+        '', // 星期二-第2节
+        '是', // 星期二-第3节
+        '', // 星期二-第4节
+        '是', // 星期二-第5节
+        '', // 星期二-第6节
+        '', // 星期三-第1节
+        '', // 星期三-第2节
+        '', // 星期三-第3节
+        '是', // 星期三-第4节
+        '', // 星期三-第5节
+        '是', // 星期三-第6节
+        '是', // 星期四-第1节
+        '', // 星期四-第2节
+        '是', // 星期四-第3节
+        '', // 星期四-第4节
+        '是', // 星期四-第5节
+        '', // 星期四-第6节
+        '', // 星期五-第1节
+        '是', // 星期五-第2节
+        '', // 星期五-第3节
+        '', // 星期五-第4节
+        '是', // 星期五-第5节
+        '', // 星期五-第6节
+      ],
+      [
+        '', // 空行，用于用户填写
         '',
-        '是',
-        '',
-        '是',
-        '',
-        '是',
-        '是',
-        '',
-        '是',
-        '',
-        '是',
         '',
         '',
         '',
         '',
-        '是',
-        '',
-        '是',
-        '是',
-        '',
-        '是',
-        '',
-        '是',
         '',
         '',
-        '是',
         '',
         '',
-        '是',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
         '',
       ],
     ];
@@ -258,17 +337,34 @@ function initPhase1() {
     // 设置列宽
     const wscols = [
       { wch: 15 }, // 姓名列宽
+      { wch: 15 }, // 班级列宽
     ];
     for (let i = 0; i < 30; i++) {
       wscols.push({ wch: 12 }); // 时间段列宽
     }
     ws['!cols'] = wscols;
 
+    // 添加样式和格式 - 使表头突出显示
+    const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: 'FFFF00' } } };
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    const headerRow = 4; // 第5行是表头
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const headerCell = XLSX.utils.encode_cell({ r: headerRow, c: C });
+      if (!ws[headerCell]) continue;
+      if (!ws[headerCell].s) ws[headerCell].s = {};
+      ws[headerCell].s = headerStyle;
+    }
+
     // 添加到工作簿
     XLSX.utils.book_append_sheet(wb, ws, '志愿者信息');
 
     // 导出文件
     XLSX.writeFile(wb, '志愿者信息模板.xlsx');
+
+    console.log('Excel模板已导出，包含字段：', headers);
+    alert(
+      '志愿者信息模板已下载，请按照以下要求填写：\n\n1. 必须填写志愿者姓名和班级\n2. 在志愿者可用的时间段填入"是"\n3. 不要修改表头行和格式\n4. 填写完成后保存并导入',
+    );
   }
 
   // 从Excel导入志愿者信息
@@ -283,21 +379,69 @@ function initPhase1() {
         // 获取第一个工作表
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        // 将工作表转换为JSON数据
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: 3 }); // 从第4行开始（跳过说明行）
+        // 尝试检测表头位置
+        let headerRowIndex = -1;
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
 
-        if (jsonData.length === 0) {
+        // 遍历前10行寻找表头
+        for (let i = range.s.r; i <= Math.min(range.s.r + 10, range.e.r); i++) {
+          const cellA = worksheet[XLSX.utils.encode_cell({ r: i, c: 0 })];
+          const cellB = worksheet[XLSX.utils.encode_cell({ r: i, c: 1 })];
+
+          // 检查是否包含"志愿者姓名"或"志愿者班级"
+          if (
+            cellA &&
+            cellB &&
+            ((cellA.w && cellA.w.includes('志愿者姓名')) || (cellB.w && cellB.w.includes('志愿者班级')))
+          ) {
+            headerRowIndex = i;
+            console.log('找到表头行，位置：', headerRowIndex + 1);
+            break;
+          }
+        }
+
+        if (headerRowIndex === -1) {
+          console.log('未检测到标准表头，尝试使用默认位置（第4行）');
+          headerRowIndex = 3; // 默认为第4行（索引为3）
+        }
+
+        // 将工作表转换为JSON数据，从表头的下一行开始
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+          range: headerRowIndex,
+          header: ['志愿者姓名', '志愿者班级'].concat(
+            Array.from({ length: 30 }, (_, i) => {
+              const day = Math.floor(i / 6) + 1;
+              const period = (i % 6) + 1;
+              return `星期${['一', '二', '三', '四', '五'][day - 1]}-第${period}节`;
+            }),
+          ),
+        });
+
+        console.log('解析到的数据：', jsonData.slice(0, 2)); // 显示前两行数据用于调试
+
+        if (jsonData.length <= 1) {
+          // 如果只有表头行或没有数据
           alert('未找到志愿者数据，请检查Excel文件格式');
           return;
         }
+
+        // 跳过表头行
+        const dataRows = jsonData.slice(1);
 
         // 解析导入的志愿者数据
         const importedVolunteers = [];
         const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五'];
 
-        jsonData.forEach((row, index) => {
-          const name = row['志愿者姓名'];
-          if (!name) return;
+        dataRows.forEach((row, index) => {
+          // 尝试多种可能的名称格式
+          const name = row['志愿者姓名'] || row['姓名'] || row[0];
+          const className = row['志愿者班级'] || row['班级'] || row[1];
+
+          if (!name || name === '志愿者姓名') return; // 跳过空行或重复的表头
+          if (!className) {
+            console.warn(`警告：志愿者 "${name}" 没有班级信息`);
+            return; // 跳过没有班级信息的志愿者
+          }
 
           const availability = [];
 
@@ -305,8 +449,19 @@ function initPhase1() {
           for (let day = 1; day <= 5; day++) {
             for (let period = 1; period <= 6; period++) {
               const key = `${weekdays[day - 1]}-第${period}节`;
+              // 获取单元格值，如果单元格不存在，尝试使用序号获取
+              const cellValue = row[key] || row[(day - 1) * 6 + period + 1];
+
+              // 检查多种可能的"是"的表示方式
               const available =
-                row[key] === '是' || row[key] === 'Y' || row[key] === 'y' || row[key] === '√' || row[key] === true;
+                cellValue === '是' ||
+                cellValue === 'Y' ||
+                cellValue === 'y' ||
+                cellValue === '√' ||
+                cellValue === true ||
+                cellValue === 1 ||
+                cellValue === '1' ||
+                (typeof cellValue === 'string' && cellValue.toLowerCase() === 'yes');
 
               if (available) {
                 availability.push({ day, period });
@@ -314,13 +469,16 @@ function initPhase1() {
             }
           }
 
-          // 只添加有可用时间的志愿者
-          if (availability.length > 0) {
+          // 只添加有效的志愿者（有姓名、班级和至少一个可用时间段）
+          if (name && className && availability.length > 0) {
             importedVolunteers.push({
               id: Date.now() + index, // 使用时间戳+索引作为唯一ID
               name,
+              class: className,
               availability,
             });
+          } else if (name && className) {
+            console.warn(`警告：志愿者 "${name}" 没有任何可用时间段`);
           }
         });
 
@@ -328,21 +486,28 @@ function initPhase1() {
         if (importedVolunteers.length > 0) {
           volunteers = [...volunteers, ...importedVolunteers];
           updateVolunteerList();
-          alert(`成功导入 ${importedVolunteers.length} 名志愿者信息`);
+
+          // 显示更详细的成功信息，包含班级信息
+          const classCount = new Set(importedVolunteers.map(v => v.class)).size;
+          alert(`成功导入 ${importedVolunteers.length} 名志愿者信息，包含 ${classCount} 个不同班级`);
+          console.log('导入的志愿者：', importedVolunteers);
         } else {
-          alert('未找到有效的志愿者数据，请检查Excel文件格式');
+          alert(
+            '未找到有效的志愿者数据，请检查Excel文件格式是否正确。\n\n确保表格包含志愿者姓名、班级和至少一个标记为"是"的可用时间段。',
+          );
         }
 
         // 清空文件输入框
         volunteerFileInput.value = '';
       } catch (error) {
         console.error('导入失败:', error);
-        alert('导入失败，请检查文件格式是否正确');
+        alert(`导入失败: ${error.message}\n\n请检查文件格式是否正确，确保使用下载的模板填写数据。`);
       }
     };
 
-    reader.onerror = function () {
-      alert('读取文件失败');
+    reader.onerror = function (error) {
+      console.error('读取文件错误:', error);
+      alert('读取文件失败，请检查文件是否有效');
     };
 
     reader.readAsArrayBuffer(file);
@@ -361,6 +526,7 @@ function initPhase1() {
     // 准备表头数据
     const headers = [
       '志愿者姓名',
+      '志愿者班级',
       '星期一-第1节',
       '星期一-第2节',
       '星期一-第3节',
@@ -393,19 +559,19 @@ function initPhase1() {
       '星期五-第6节',
     ];
 
-    // 添加标题和说明
+    // 准备数据行
     const data = [['志愿者排班系统 - 志愿者信息'], [`导出时间：${new Date().toLocaleString()}`], [], headers];
 
-    // 添加志愿者数据
     volunteers.forEach(volunteer => {
-      const row = new Array(31).fill(''); // 31列：1列姓名 + 30列时间段
+      const row = Array(headers.length).fill('');
       row[0] = volunteer.name;
+      row[1] = volunteer.class;
 
-      // 填写可用时间
+      // 填充可用时间
       volunteer.availability.forEach(avail => {
         const day = avail.day;
         const period = avail.period;
-        const colIndex = (day - 1) * 6 + period;
+        const colIndex = (day - 1) * 6 + period + 1; // +1是因为前两列是姓名和班级
         row[colIndex] = '是';
       });
 
@@ -418,6 +584,7 @@ function initPhase1() {
     // 设置列宽
     const wscols = [
       { wch: 15 }, // 姓名列宽
+      { wch: 15 }, // 班级列宽
     ];
     for (let i = 0; i < 30; i++) {
       wscols.push({ wch: 12 }); // 时间段列宽
@@ -429,6 +596,7 @@ function initPhase1() {
 
     // 导出文件
     XLSX.writeFile(wb, '志愿者信息.xlsx');
+    console.log('已导出志愿者信息，包含班级字段');
   }
 
   // 下一步按钮点击事件
@@ -447,26 +615,8 @@ function initPhase1() {
 function initPhase2() {
   const phase2Prev = document.getElementById('phase2-prev');
   const phase2Next = document.getElementById('phase2-next');
-  const bulkSetCount = document.getElementById('bulk-set-count');
   const applyBulkSetBtn = document.getElementById('apply-bulk-set');
-
-  // 批量设置班次人数按钮点击事件
-  applyBulkSetBtn.addEventListener('click', function () {
-    try {
-      const count = parseInt(bulkSetCount.value) || 0;
-      console.log('批量设置所有班次人数为:', count);
-
-      // 设置所有班次的人数
-      document.querySelectorAll('.shift-count').forEach(input => {
-        input.value = count;
-      });
-
-      alert(`已将所有班次人数设置为 ${count}`);
-    } catch (error) {
-      console.error('批量设置班次人数失败:', error);
-      alert('设置失败，请重试');
-    }
-  });
+  const applyBulkSetClassBtn = document.getElementById('apply-bulk-set-class');
 
   // 上一步按钮点击事件
   phase2Prev.addEventListener('click', function () {
@@ -477,7 +627,6 @@ function initPhase2() {
   phase2Next.addEventListener('click', function () {
     // 收集班次需求
     shiftRequirements = {};
-
     document.querySelectorAll('.shift-count').forEach(input => {
       const day = parseInt(input.dataset.day);
       const period = parseInt(input.dataset.period);
@@ -486,12 +635,46 @@ function initPhase2() {
       if (!shiftRequirements[day]) {
         shiftRequirements[day] = {};
       }
-
       shiftRequirements[day][period] = count;
     });
 
-    // 进入第三阶段
+    // 收集班级数量限制
+    shiftClassRequirements = {};
+    document.querySelectorAll('.shift-class-count').forEach(input => {
+      const day = parseInt(input.dataset.day);
+      const period = parseInt(input.dataset.period);
+      const count = parseInt(input.value) || 0;
+
+      if (!shiftClassRequirements[day]) {
+        shiftClassRequirements[day] = {};
+      }
+      shiftClassRequirements[day][period] = count;
+    });
+
+    // 获取每个志愿者最大排班次数
+    maxShiftsPerVolunteer = parseInt(document.getElementById('max-shifts-per-volunteer').value) || 0;
+    console.log('每个志愿者最大排班次数设置为:', maxShiftsPerVolunteer);
+
     goToPhase(3);
+  });
+
+  // 批量设置按钮点击事件
+  applyBulkSetBtn.addEventListener('click', function () {
+    const count = parseInt(document.getElementById('bulk-set-count').value) || 0;
+    document.querySelectorAll('.shift-count').forEach(input => {
+      input.value = count;
+    });
+  });
+
+  // 批量设置班级数量限制按钮点击事件
+  applyBulkSetClassBtn.addEventListener('click', function () {
+    console.log('批量设置班级数量限制按钮被点击');
+    const count = parseInt(document.getElementById('bulk-set-class-count').value) || 0;
+    document.querySelectorAll('.shift-class-count').forEach(input => {
+      input.value = count;
+    });
+    // 显示确认信息
+    alert(`已将所有班次的最少班级数量设置为 ${count}`);
   });
 }
 
@@ -570,6 +753,8 @@ function initPhase4() {
         volunteers,
         shiftRequirements,
         scheduleData,
+        shiftClassRequirements,
+        maxShiftsPerVolunteer,
       }),
     );
 
@@ -620,8 +805,9 @@ function generateSchedule() {
   for (let day = 1; day <= 5; day++) {
     for (let period = 1; period <= 6; period++) {
       const requiredCount = (shiftRequirements[day] && shiftRequirements[day][period]) || 0;
+      const classLimit = (shiftClassRequirements[day] && shiftClassRequirements[day][period]) || 0;
       if (requiredCount > 0) {
-        allShifts.push({ day, period, requiredCount });
+        allShifts.push({ day, period, requiredCount, classLimit });
       }
     }
   }
@@ -631,54 +817,97 @@ function generateSchedule() {
 
   // 第二步：按需求优先级分配志愿者
   allShifts.forEach(shift => {
-    const { day, period, requiredCount } = shift;
+    const { day, period, requiredCount, classLimit } = shift;
 
     // 找出可在此班次值班的志愿者
-    let availableVolunteers = volunteers.filter(volunteer =>
-      volunteer.availability.some(avail => avail.day === day && avail.period === period),
+    let availableVolunteers = volunteers.filter(
+      volunteer =>
+        volunteer.availability.some(avail => avail.day === day && avail.period === period) &&
+        // 如果设置了最大排班次数限制，只选择未达到限制的志愿者
+        (maxShiftsPerVolunteer === 0 || assignedCounts[volunteer.id] < maxShiftsPerVolunteer),
     );
 
+    // 分配班次，考虑班级限制
+    const assignedClasses = new Set(); // 用于跟踪已分配的班级
+    const assignedVolunteers = []; // 用于存储已分配的志愿者
+
+    // 首先，尝试满足班级多样性要求
+    if (classLimit > 0) {
+      // 按班级对志愿者进行分组
+      const volunteersByClass = {};
+      availableVolunteers.forEach(volunteer => {
+        if (!volunteersByClass[volunteer.class]) {
+          volunteersByClass[volunteer.class] = [];
+        }
+        volunteersByClass[volunteer.class].push(volunteer);
+      });
+
+      // 从每个班级选择一名志愿者，直到满足最小班级数量或者无法满足
+      const classes = Object.keys(volunteersByClass);
+
+      // 如果可用班级数量小于最小要求，则无法满足要求
+      if (classes.length < classLimit) {
+        console.warn(`无法满足班级多样性要求：需要${classLimit}个班级，但只有${classes.length}个班级可用`);
+      } else {
+        // 从每个班级中选择一名志愿者，直到满足最小班级数量
+        for (let i = 0; i < Math.min(classLimit, classes.length) && assignedVolunteers.length < requiredCount; i++) {
+          const className = classes[i];
+          const classVolunteers = volunteersByClass[className];
+
+          // 选择该班级中分配次数最少的志愿者
+          classVolunteers.sort((a, b) => assignedCounts[a.id] - assignedCounts[b.id]);
+
+          if (classVolunteers.length > 0) {
+            const volunteer = classVolunteers[0];
+
+            // 检查最大排班次数限制
+            if (maxShiftsPerVolunteer === 0 || assignedCounts[volunteer.id] < maxShiftsPerVolunteer) {
+              assignedVolunteers.push({
+                id: volunteer.id,
+                name: volunteer.name,
+                class: volunteer.class,
+              });
+              assignedClasses.add(volunteer.class);
+              assignedCounts[volunteer.id]++;
+
+              // 从可用志愿者列表中移除已分配的志愿者
+              availableVolunteers = availableVolunteers.filter(v => v.id !== volunteer.id);
+            }
+          }
+        }
+      }
+    }
+
+    // 继续分配剩余志愿者，不考虑班级
     // 按已分配班次数升序排序，优先分配给班次少的志愿者
     availableVolunteers.sort((a, b) => assignedCounts[a.id] - assignedCounts[b.id]);
 
-    // 分配班次
-    for (let i = 0; i < requiredCount && i < availableVolunteers.length; i++) {
+    // 填充剩余名额
+    for (let i = 0; i < availableVolunteers.length && assignedVolunteers.length < requiredCount; i++) {
       const volunteer = availableVolunteers[i];
-      schedule[day][period].push({
-        id: volunteer.id,
-        name: volunteer.name,
-      });
-      assignedCounts[volunteer.id]++;
-    }
-  });
 
-  // 检查是否有班次未满足人数需求
-  let unmatchedShifts = [];
-  for (let day = 1; day <= 5; day++) {
-    for (let period = 1; period <= 6; period++) {
-      const requiredCount = (shiftRequirements[day] && shiftRequirements[day][period]) || 0;
-      const assignedCount = schedule[day][period].length;
-
-      if (requiredCount > assignedCount) {
-        unmatchedShifts.push({
-          day,
-          period,
-          required: requiredCount,
-          assigned: assignedCount,
+      // 再次检查最大排班次数限制（以防万一）
+      if (maxShiftsPerVolunteer === 0 || assignedCounts[volunteer.id] < maxShiftsPerVolunteer) {
+        assignedVolunteers.push({
+          id: volunteer.id,
+          name: volunteer.name,
+          class: volunteer.class,
         });
+        assignedCounts[volunteer.id]++;
       }
     }
-  }
 
-  // 如果有未满足的班次，给出警告但继续返回结果
-  if (unmatchedShifts.length > 0) {
-    console.warn('Some shifts could not be fully staffed:', unmatchedShifts);
-  }
+    // 将分配的志愿者添加到排班表
+    schedule[day][period] = assignedVolunteers;
+  });
+
+  // 存储每个志愿者的排班次数，方便后续展示
+  localStorage.setItem('volunteer-shift-counts', JSON.stringify(assignedCounts));
 
   return schedule;
 }
 
-// 生成预览表格
+// 生成预览表格数据
 function generatePreviewTable() {
   const previewTable = document.getElementById('schedule-preview');
   const tbody = previewTable.querySelector('tbody');
@@ -733,26 +962,28 @@ function generatePreviewTable() {
   }
 }
 
-// 添加志愿者标签
+// 添加志愿者标签到单元格
 function addVolunteerChip(container, volunteer, day, period) {
   const chip = document.createElement('div');
   chip.className = 'volunteer-chip';
-  chip.dataset.volunteerId = volunteer.id;
+  chip.dataset.id = volunteer.id;
+  chip.dataset.day = day;
+  chip.dataset.period = period;
 
   const nameSpan = document.createElement('span');
-  nameSpan.textContent = volunteer.name;
+  nameSpan.textContent = `${volunteer.name} (${volunteer.class})`;
+  chip.appendChild(nameSpan);
 
-  const removeButton = document.createElement('span');
-  removeButton.className = 'remove-volunteer';
-  removeButton.innerHTML = '&times;';
-  removeButton.addEventListener('click', function (e) {
-    e.stopPropagation(); // 阻止事件冒泡
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'btn-remove-volunteer';
+  removeBtn.innerHTML = '&times;';
+  removeBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
     removeVolunteerFromSchedule(volunteer.id, day, period);
     chip.remove();
   });
+  chip.appendChild(removeBtn);
 
-  chip.appendChild(nameSpan);
-  chip.appendChild(removeButton);
   container.appendChild(chip);
 }
 
@@ -763,111 +994,26 @@ function removeVolunteerFromSchedule(volunteerId, day, period) {
   }
 }
 
-// 编辑单元格
-function editCell(cell) {
-  // 如果单元格已经处于编辑模式，则不执行操作
-  if (cell.classList.contains('edit-mode')) return;
-
-  const day = parseInt(cell.dataset.day);
-  const period = parseInt(cell.dataset.period);
-
-  // 添加编辑模式样式
-  cell.classList.add('edit-mode');
-
-  // 创建可用志愿者下拉列表
-  const select = document.createElement('select');
-  select.className = 'form-select mt-2';
-
-  // 添加空选项
-  const emptyOption = document.createElement('option');
-  emptyOption.value = '';
-  emptyOption.textContent = '-- 选择志愿者 --';
-  select.appendChild(emptyOption);
-
-  // 找出可在此班次值班且尚未被分配的志愿者
-  const assignedVolunteerIds = scheduleData[day][period].map(v => v.id);
-  const availableVolunteers = volunteers.filter(volunteer => {
-    // 志愿者在此时间段可用
-    const isAvailable = volunteer.availability.some(avail => avail.day === day && avail.period === period);
-    // 志愿者尚未被分配到此班次
-    const notAssigned = !assignedVolunteerIds.includes(volunteer.id);
-    return isAvailable && notAssigned;
-  });
-
-  // 添加可用志愿者选项
-  availableVolunteers.forEach(volunteer => {
-    const option = document.createElement('option');
-    option.value = volunteer.id;
-    option.textContent = volunteer.name;
-    select.appendChild(option);
-  });
-
-  // 添加按钮组
-  const buttonGroup = document.createElement('div');
-  buttonGroup.className = 'btn-group mt-2';
-
-  const addBtn = document.createElement('button');
-  addBtn.className = 'btn btn-sm btn-success';
-  addBtn.textContent = '添加';
-  addBtn.addEventListener('click', function () {
-    const volunteerId = select.value;
-    if (volunteerId) {
-      const volunteer = volunteers.find(v => v.id == volunteerId);
-
-      // 添加到排班数据
-      scheduleData[day][period].push({
-        id: volunteer.id,
-        name: volunteer.name,
-      });
-
-      // 添加志愿者标签
-      const cellContent = cell.querySelector('.cell-content');
-      addVolunteerChip(cellContent, volunteer, day, period);
-
-      // 重置选择框
-      select.value = '';
-    }
-  });
-
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'btn btn-sm btn-secondary ms-1';
-  cancelBtn.textContent = '完成';
-  cancelBtn.addEventListener('click', function () {
-    // 移除编辑界面
-    select.remove();
-    buttonGroup.remove();
-    // 移除编辑模式样式
-    cell.classList.remove('edit-mode');
-  });
-
-  buttonGroup.appendChild(addBtn);
-  buttonGroup.appendChild(cancelBtn);
-
-  // 添加到单元格
-  cell.appendChild(select);
-  cell.appendChild(buttonGroup);
-}
-
-// 导出为Excel
+// 导出排班结果到Excel
 function exportToExcel() {
   // 创建工作簿
   const wb = XLSX.utils.book_new();
-  wb.SheetNames.push('志愿者排班表');
 
-  // 准备数据
-  const data = [['时间段', '星期一', '星期二', '星期三', '星期四', '星期五']];
+  // 准备表头数据
+  const headers = ['时间段', '星期一', '星期二', '星期三', '星期四', '星期五'];
 
-  // 添加数据行
+  // 准备数据行
+  const data = [['志愿者排班表'], [`生成时间：${new Date().toLocaleString()}`], [], headers];
+
+  // 添加每个时间段的数据
   for (let period = 1; period <= 6; period++) {
     const row = [`第${period}节`];
 
+    // 添加每天的志愿者
     for (let day = 1; day <= 5; day++) {
-      if (shiftRequirements[day] && shiftRequirements[day][period] && shiftRequirements[day][period] > 0) {
-        const volunteers = scheduleData[day] && scheduleData[day][period] ? scheduleData[day][period] : [];
-        row.push(volunteers.map(v => v.name).join('\n'));
-      } else {
-        row.push('');
-      }
+      const volunteers = scheduleData[day][period] || [];
+      const volunteerText = volunteers.map(v => `${v.name} (${v.class})`).join('\n');
+      row.push(volunteerText);
     }
 
     data.push(row);
@@ -876,22 +1022,76 @@ function exportToExcel() {
   // 创建工作表
   const ws = XLSX.utils.aoa_to_sheet(data);
 
-  // 调整列宽
-  const wscols = [
-    { wch: 10 }, // 时间段列宽
-    { wch: 20 }, // 星期一列宽
-    { wch: 20 }, // 星期二列宽
-    { wch: 20 }, // 星期三列宽
-    { wch: 20 }, // 星期四列宽
-    { wch: 20 }, // 星期五列宽
-  ];
+  // 设置列宽
+  const wscols = [{ wch: 10 }]; // 时间段列宽
+  for (let i = 0; i < 5; i++) {
+    wscols.push({ wch: 25 }); // 每天的列宽
+  }
   ws['!cols'] = wscols;
 
   // 添加到工作簿
-  wb.Sheets['志愿者排班表'] = ws;
+  XLSX.utils.book_append_sheet(wb, ws, '排班表');
+
+  // 添加志愿者值班次数统计工作表
+  // 获取排班次数数据
+  let shiftCounts = {};
+  try {
+    const savedShiftCounts = localStorage.getItem('volunteer-shift-counts');
+    if (savedShiftCounts) {
+      shiftCounts = JSON.parse(savedShiftCounts);
+    }
+  } catch (error) {
+    console.error('无法加载排班次数数据', error);
+  }
+
+  // 准备志愿者统计数据
+  const statsHeaders = ['志愿者姓名', '班级', '排班次数'];
+  const statsData = [['志愿者排班次数统计表'], [`生成时间：${new Date().toLocaleString()}`], [], statsHeaders];
+
+  // 对志愿者按排班次数排序（降序）
+  const sortedVolunteers = [...volunteers].sort((a, b) => {
+    const countA = shiftCounts[a.id] || 0;
+    const countB = shiftCounts[b.id] || 0;
+    return countB - countA; // 降序排序
+  });
+
+  // 添加每个志愿者的统计数据
+  sortedVolunteers.forEach(volunteer => {
+    statsData.push([volunteer.name, volunteer.class, shiftCounts[volunteer.id] || 0]);
+  });
+
+  // 添加统计信息
+  if (sortedVolunteers.length > 0) {
+    const totalShifts = Object.values(shiftCounts).reduce((sum, count) => sum + count, 0);
+    const avgShifts = totalShifts / sortedVolunteers.length;
+
+    statsData.push([]);
+    statsData.push(['统计信息']);
+    statsData.push(['志愿者总人数', sortedVolunteers.length]);
+    statsData.push(['总排班次数', totalShifts]);
+    statsData.push(['平均每人排班次数', avgShifts.toFixed(2)]);
+
+    if (maxShiftsPerVolunteer > 0) {
+      statsData.push(['设置的最大排班次数限制', maxShiftsPerVolunteer]);
+    }
+  }
+
+  // 创建统计工作表
+  const statsWs = XLSX.utils.aoa_to_sheet(statsData);
+
+  // 设置列宽
+  statsWs['!cols'] = [
+    { wch: 20 }, // 姓名列宽
+    { wch: 20 }, // 班级列宽
+    { wch: 15 }, // 排班次数列宽
+  ];
+
+  // 添加到工作簿
+  XLSX.utils.book_append_sheet(wb, statsWs, '排班次数统计');
 
   // 导出文件
   XLSX.writeFile(wb, '志愿者排班表.xlsx');
+  console.log('已导出排班表，包含班级字段和志愿者排班次数统计');
 }
 
 // 检查本地存储中是否有保存的数据
@@ -903,6 +1103,8 @@ function loadSavedData() {
       volunteers = data.volunteers || [];
       shiftRequirements = data.shiftRequirements || {};
       scheduleData = data.scheduleData || {};
+      shiftClassRequirements = data.shiftClassRequirements || {};
+      maxShiftsPerVolunteer = data.maxShiftsPerVolunteer || 0;
 
       // 更新界面
       updateVolunteerList();
@@ -926,6 +1128,7 @@ if (loadSavedData()) {
     volunteers = [];
     shiftRequirements = {};
     scheduleData = {};
+    shiftClassRequirements = {};
     localStorage.removeItem('volunteer-schedule');
   }
 }

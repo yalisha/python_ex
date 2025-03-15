@@ -84,6 +84,11 @@
                     </div>
 
                     <div class="mb-3">
+                      <label for="volunteer-class" class="form-label">志愿者班级</label>
+                      <input type="text" class="form-control" id="volunteer-class" required>
+                    </div>
+
+                    <div class="mb-3">
                       <h5>请选择志愿者可用的时间段</h5>
                       <table class="table table-bordered schedule-table">
                         <thead>
@@ -204,15 +209,63 @@
             </div>
           </div>
 
+          <!-- 添加班级数量限制设置 -->
+          <div class="card mb-3">
+            <div class="card-body bg-light">
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <label for="bulk-set-class-count" class="form-label mb-0">批量设置所有班次班级数量限制:</label>
+                  <small class="text-muted d-block">限制每个班次最少需要包含多少个不同班级的志愿者</small>
+                </div>
+                <div class="col-md-3">
+                  <input type="number" min="0" value="0" class="form-control" id="bulk-set-class-count">
+                  <small class="text-muted d-block">0表示不限制班级数量</small>
+                </div>
+                <div class="col-md-3">
+                  <button id="apply-bulk-set-class" class="btn btn-secondary">应用到所有班次</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 添加每个志愿者最大排班次数设置 -->
+          <div class="card mb-3">
+            <div class="card-body bg-light">
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <label for="max-shifts-per-volunteer" class="form-label mb-0">每个志愿者最大排班次数:</label>
+                  <small class="text-muted d-block">限制每个志愿者最多可以被排几次班</small>
+                </div>
+                <div class="col-md-6">
+                  <input type="number" min="0" value="0" class="form-control" id="max-shifts-per-volunteer">
+                  <small class="text-muted d-block">0表示不限制排班次数</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <table class="table table-bordered schedule-table">
             <thead>
               <tr>
                 <th>时间段</th>
-                <th>星期一</th>
-                <th>星期二</th>
-                <th>星期三</th>
-                <th>星期四</th>
-                <th>星期五</th>
+                <th colspan="2">星期一</th>
+                <th colspan="2">星期二</th>
+                <th colspan="2">星期三</th>
+                <th colspan="2">星期四</th>
+                <th colspan="2">星期五</th>
+              </tr>
+              <tr>
+                <th></th>
+                <th>人数</th>
+                <th>班级数</th>
+                <th>人数</th>
+                <th>班级数</th>
+                <th>人数</th>
+                <th>班级数</th>
+                <th>人数</th>
+                <th>班级数</th>
+                <th>人数</th>
+                <th>班级数</th>
               </tr>
             </thead>
             <tbody>
@@ -221,78 +274,138 @@
                 <td>第1节</td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
                     data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="1"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
                     data-period="1"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
                     data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="1"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
                     data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="1"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
                     data-period="1"></td>
               </tr>
               <tr data-period="2">
                 <td>第2节</td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
                     data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="2"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
                     data-period="2"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
                     data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="2"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
                     data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="2"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
                     data-period="2"></td>
               </tr>
               <tr data-period="3">
                 <td>第3节</td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
                     data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="3"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
                     data-period="3"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
                     data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="3"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
                     data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="3"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
                     data-period="3"></td>
               </tr>
               <tr data-period="4">
                 <td>第4节</td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
                     data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="4"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
                     data-period="4"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
                     data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="4"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
                     data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="4"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
                     data-period="4"></td>
               </tr>
               <tr data-period="5">
                 <td>第5节</td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
                     data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="5"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
                     data-period="5"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
                     data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="5"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
                     data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="5"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
                     data-period="5"></td>
               </tr>
               <tr data-period="6">
                 <td>第6节</td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
                     data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="6"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
                     data-period="6"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
                     data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="6"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
                     data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="6"></td>
                 <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
                     data-period="6"></td>
               </tr>
             </tbody>
