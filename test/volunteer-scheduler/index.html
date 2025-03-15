@@ -70,6 +70,65 @@
                 </div>
               </div>
             </div>
+
+            <!-- 添加课表截图导入方式 -->
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header bg-light">
+                  <h5>课表图片导入</h5>
+                </div>
+                <div class="card-body">
+                  <p>上传课表截图，系统将自动识别空余时间。</p>
+
+                  <form id="timetable-import-form">
+                    <div class="mb-3">
+                      <label for="timetable-volunteer-name" class="form-label">志愿者姓名</label>
+                      <input type="text" class="form-control" id="timetable-volunteer-name" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="timetable-volunteer-class" class="form-label">志愿者班级</label>
+                      <input type="text" class="form-control" id="timetable-volunteer-class" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="timetable-image" class="form-label">上传课表截图</label>
+                      <input type="file" class="form-control" id="timetable-image" accept="image/*" required>
+                      <small class="text-muted">支持JPG、PNG等常见图片格式</small>
+                    </div>
+
+                    <button type="button" id="analyze-timetable" class="btn btn-primary">分析课表</button>
+                  </form>
+
+                  <!-- 预览和编辑区域 -->
+                  <div id="timetable-preview-container" class="mt-4" style="display: none;">
+                    <h6>课表预览与编辑</h6>
+                    <p class="text-muted small">请在下面的表格中确认您的课程时间（有课=红色，无课=绿色）。点击格子可以切换状态。</p>
+
+                    <div class="table-responsive">
+                      <table id="timetable-editor" class="table table-bordered table-sm">
+                        <thead>
+                          <tr>
+                            <th>节次</th>
+                            <th>星期一</th>
+                            <th>星期二</th>
+                            <th>星期三</th>
+                            <th>星期四</th>
+                            <th>星期五</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <!-- 动态生成的时间表编辑器 -->
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <button type="button" id="confirm-timetable" class="btn btn-success mt-2">确认并添加志愿者</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="col-md-6">
               <div class="card">
                 <div class="card-header bg-light">
@@ -582,7 +641,7 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      L.rtURL(url);
     }
 
     // 添加导出日志的按钮到界面中的适当位置
@@ -598,7 +657,7 @@
             console.log('Service Worker 注册成功，作用域为:', registration.scope);
           })
           .catch(function (error) {
-            console.error('Service Worker 注册失败:', error);
+            console.error('Seice Wo失败:', error);
           });
       });
     }

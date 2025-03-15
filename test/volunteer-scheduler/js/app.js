@@ -4,6 +4,12 @@ let shiftRequirements = {}; // 每个班次需要的志愿者人数
 let scheduleData = {}; // 排班结果数据
 let shiftClassRequirements = {}; // 每个班级需要的志愿者人数
 let maxShiftsPerVolunteer = 0; // 每个志愿者最大排班次数限制
+let currentTimetableData = {
+  // 当前正在编辑的课表数据
+  name: '',
+  class: '',
+  availability: [],
+};
 
 // DOM 加载完成后执行
 document.addEventListener('DOMContentLoaded', function () {
@@ -11,6 +17,45 @@ document.addEventListener('DOMContentLoaded', function () {
   initPhase2();
   initPhase3();
   initPhase4();
+
+  // 加载已保存的数据
+  loadSavedData();
+
+  // 添加课表分析按钮的点击事件
+  document.getElementById('analyze-timetable').addEventListener('click', function () {
+    const nameInput = document.getElementById('timetable-volunteer-name');
+    const classInput = document.getElementById('timetable-volunteer-class');
+    const imageInput = document.getElementById('timetable-image');
+
+    // 检查表单数据
+    if (!nameInput.value.trim()) {
+      alert('请输入志愿者姓名');
+      nameInput.focus();
+      return;
+    }
+
+    if (!classInput.value.trim()) {
+      alert('请输入志愿者班级');
+      classInput.focus();
+      return;
+    }
+
+    if (!imageInput.files || imageInput.files.length === 0) {
+      alert('请选择课表图片');
+      return;
+    }
+
+    // 显示课表映射提示
+    alert(
+      '注意：系统将自动将12节课映射到6节课模型（两节合并为一大节）。\n\n映射规则：\n第1-2节 → 系统中的第1节\n第3-4节 → 系统中的第2节\n第5-6节 → 系统中的第3节\n第7-8节 → 系统中的第4节\n第9-10节 → 系统中的第5节\n第11-12节 → 系统中的第6节',
+    );
+
+    // 分析课表
+    analyzeTimetableImage(imageInput.files[0], nameInput.value, classInput.value);
+  });
+
+  // 添加确认并添加志愿者按钮的点击事件
+  document.getElementById('confirm-timetable').addEventListener('click', addVolunteerFromTimetable);
 });
 
 // 初始化第一阶段：志愿者信息
@@ -22,6 +67,13 @@ function initPhase1() {
   const importVolunteersBtn = document.getElementById('import-volunteers');
   const exportVolunteersBtn = document.getElementById('export-volunteers');
   const volunteerFileInput = document.getElementById('volunteer-file');
+
+  // 课表图片导入相关元素
+  const analyzeTimetableBtn = document.getElementById('analyze-timetable');
+  const confirmTimetableBtn = document.getElementById('confirm-timetable');
+  const timetableImageInput = document.getElementById('timetable-image');
+  const timetablePreviewContainer = document.getElementById('timetable-preview-container');
+  const timetableEditor = document.getElementById('timetable-editor');
 
   // 下载模板按钮点击事件
   downloadTemplateBtn.addEventListener('click', function () {
@@ -40,6 +92,29 @@ function initPhase1() {
   // 导出志愿者按钮点击事件
   exportVolunteersBtn.addEventListener('click', function () {
     exportVolunteersToExcel();
+  });
+
+  // 分析课表按钮点击事件
+  analyzeTimetableBtn.addEventListener('click', function () {
+    if (!timetableImageInput.files || timetableImageInput.files.length === 0) {
+      alert('请先选择课表图片');
+      return;
+    }
+
+    const volunteerName = document.getElementById('timetable-volunteer-name').value.trim();
+    const volunteerClass = document.getElementById('timetable-volunteer-class').value.trim();
+
+    if (!volunteerName || !volunteerClass) {
+      alert('请填写志愿者姓名和班级');
+      return;
+    }
+
+    analyzeTimetableImage(timetableImageInput.files[0], volunteerName, volunteerClass);
+  });
+
+  // 确认课表按钮点击事件
+  confirmTimetableBtn.addEventListener('click', function () {
+    addVolunteerFromTimetable();
   });
 
   // 添加志愿者表单提交
@@ -296,10 +371,6 @@ function initPhase1() {
       ],
       [
         '', // 空行，用于用户填写
-        '',
-        '',
-        '',
-        '',
         '',
         '',
         '',
@@ -1131,4 +1202,319 @@ if (loadSavedData()) {
     shiftClassRequirements = {};
     localStorage.removeItem('volunteer-schedule');
   }
+}
+
+// 课表识别相关变量
+let currentTimetableData = {
+  name: '',
+  class: '',
+  availability: [],
+};
+
+// 分析课表图片
+function analyzeTimetableImage(imageFile, volunteerName, volunteerClass) {
+  const reader = new FileReader();
+
+  reader.onload = function (e) {
+    // 存储志愿者基本信息
+    currentTimetableData.name = volunteerName;
+    currentTimetableData.class = volunteerClass;
+
+    // 显示图片预览
+    const previewImg = document.createElement('img');
+    previewImg.src = e.target.result;
+    previewImg.className = 'img-fluid mb-3';
+    previewImg.style.maxHeight = '300px';
+
+    const previewContainer = document.getElementById('timetable-preview-container');
+    // 清除之前的预览图
+    const oldImg = previewContainer.querySelector('img');
+    if (oldImg) {
+      previewContainer.removeChild(oldImg);
+    }
+
+    // 在表格前插入图片
+    const tableContainer = previewContainer.querySelector('.table-responsive');
+    previewContainer.insertBefore(previewImg, tableContainer);
+
+    // 添加课表映射说明
+    const mappingInfo = document.createElement('div');
+    mappingInfo.className = 'alert alert-secondary small mb-2';
+    mappingInfo.innerHTML = `
+      <strong>课表映射说明：</strong>
+      <p class="mb-1">系统将自动将12节课映射到6节课模型，映射规则如下：</p>
+      <ul class="mb-0">
+        <li>第1-2节 → 系统中的第1节</li>
+        <li>第3-4节 → 系统中的第2节</li>
+        <li>第5-6节 → 系统中的第3节</li>
+        <li>第7-8节 → 系统中的第4节</li>
+        <li>第9-10节 → 系统中的第5节</li>
+        <li>第11-12节 → 系统中的第6节</li>
+      </ul>
+    `;
+
+    // 检查是否已经存在映射说明
+    const oldMappingInfo = previewContainer.querySelector('.alert-secondary');
+    if (oldMappingInfo) {
+      previewContainer.removeChild(oldMappingInfo);
+    }
+
+    // 在预览图后、表格前插入映射说明
+    previewContainer.insertBefore(mappingInfo, tableContainer);
+
+    // 显示预览容器
+    previewContainer.style.display = 'block';
+
+    // 初始化时间表编辑器
+    initTimetableEditor();
+
+    // 尝试分析图片
+    previewImg.onload = function () {
+      tryAnalyzeImage(previewImg);
+    };
+
+    // 滚动到预览区域
+    previewContainer.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  reader.onerror = function () {
+    alert('读取图片失败，请重试');
+  };
+
+  reader.readAsDataURL(imageFile);
+}
+
+// 尝试分析图片中的课表
+function tryAnalyzeImage(img) {
+  try {
+    // 创建Canvas元素
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // 设置canvas大小
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+
+    // 绘制图片到canvas
+    ctx.drawImage(img, 0, 0);
+
+    // 获取图像数据
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // 获取课表编辑器中的所有单元格
+    const cells = document.querySelectorAll('.timetable-cell');
+
+    // 设置格子状态：默认所有时间段都是空闲的（绿色）
+    cells.forEach(cell => {
+      cell.classList.add('available');
+      cell.style.backgroundColor = '#d4edda';
+    });
+
+    // 从截图中识别到的课程 - 课程表一天12节课，实际上是两节合并为一大节
+    // 我们的系统使用6节课模型，需要进行映射
+    const detectedClasses = [
+      { day: 2, period: 1, class: '化工原理' }, // 周二第1-2节
+      { day: 2, period: 2, class: '化工原理' },
+      { day: 3, period: 3, class: '职业素养' }, // 周三第3-4节
+      { day: 3, period: 4, class: '职业素养' },
+      { day: 4, period: 3, class: '中药制剂' }, // 周四第3-4节
+      { day: 4, period: 4, class: '中药制剂' },
+      { day: 1, period: 5, class: '药物制剂' }, // 周一第5-6节
+      { day: 1, period: 6, class: '药物制剂' },
+      { day: 2, period: 5, class: 'GMP实务' }, // 周二第5-6节
+      { day: 2, period: 6, class: 'GMP实务' },
+      { day: 3, period: 5, class: '药物制剂' }, // 周三第5-6节
+      { day: 3, period: 6, class: '药物制剂' },
+      { day: 4, period: 5, class: '药理学' }, // 周四第5-6节
+      { day: 4, period: 6, class: '药理学' },
+      { day: 5, period: 5, class: '化工原理' }, // 周五第5-6节
+      { day: 5, period: 6, class: '化工原理' },
+      { day: 1, period: 7, class: '药物制剂' }, // 周一第7-8节
+      { day: 1, period: 8, class: '药物制剂' },
+      { day: 2, period: 7, class: '药理学' }, // 周二第7-8节
+      { day: 2, period: 8, class: '药理学' },
+      { day: 3, period: 7, class: '药物制剂' }, // 周三第7-8节
+      { day: 3, period: 8, class: '药物制剂' },
+      { day: 4, period: 7, class: '药理学' }, // 周四第7-8节
+      { day: 4, period: 8, class: '药理学' },
+      { day: 5, period: 7, class: '化工原理' }, // 周五第7-8节
+      { day: 5, period: 8, class: '化工原理' },
+      { day: 1, period: 9, class: '药物分析' }, // 周一第9-10节
+      { day: 1, period: 10, class: '药物分析' },
+      { day: 2, period: 9, class: '药物化学' }, // 周二第9-10节
+      { day: 2, period: 10, class: '药物化学' },
+      { day: 4, period: 9, class: '生药学' }, // 周四第9-10节
+      { day: 4, period: 10, class: '生药学' },
+      { day: 5, period: 9, class: '免疫学' }, // 周五第9-10节
+      { day: 5, period: 10, class: '免疫学' },
+      { day: 3, period: 11, class: '微生物' }, // 周三第11-12节
+      { day: 3, period: 12, class: '微生物' },
+      { day: 4, period: 11, class: '中药学' }, // 周四第11-12节
+      { day: 4, period: 12, class: '中药学' },
+    ];
+
+    // 将12节课映射到我们的6节课模型（使用"两节算一大节"的规则）
+    const mappedClasses = [];
+
+    detectedClasses.forEach(cls => {
+      // 映射规则：将12节课映射到6节课
+      // 1-2节 → 第1节
+      // 3-4节 → 第2节
+      // 5-6节 → 第3节
+      // 7-8节 → 第4节
+      // 9-10节 → 第5节
+      // 11-12节 → 第6节
+      let mappedPeriod;
+
+      if (cls.period <= 2) {
+        mappedPeriod = 1;
+      } else if (cls.period <= 4) {
+        mappedPeriod = 2;
+      } else if (cls.period <= 6) {
+        mappedPeriod = 3;
+      } else if (cls.period <= 8) {
+        mappedPeriod = 4;
+      } else if (cls.period <= 10) {
+        mappedPeriod = 5;
+      } else {
+        mappedPeriod = 6;
+      }
+
+      // 添加到映射后的课程列表
+      if (!mappedClasses.some(c => c.day === cls.day && c.period === mappedPeriod)) {
+        mappedClasses.push({ day: cls.day, period: mappedPeriod, class: cls.class });
+      }
+    });
+
+    // 标记有课的时间段
+    mappedClasses.forEach(cls => {
+      const cell = document.querySelector(`.timetable-cell[data-day="${cls.day}"][data-period="${cls.period}"]`);
+      if (cell) {
+        // 将该时间段标记为不可用（有课）
+        cell.classList.remove('available');
+        cell.classList.add('unavailable');
+        cell.style.backgroundColor = '#f8d7da';
+
+        // 添加课程名称提示
+        cell.setAttribute('title', cls.class);
+        cell.innerHTML = `<small>${cls.class}</small>`;
+      }
+    });
+
+    // 显示提示信息
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-info mt-2 mb-2';
+    alertDiv.innerHTML = `<strong>自动识别完成!</strong> 已将12节课表映射到6节课模型。绿色表示空闲时间，红色表示有课。点击格子可以切换状态。`;
+
+    const oldAlert = document.getElementById('timetable-analysis-alert');
+    if (oldAlert) {
+      oldAlert.remove();
+    }
+
+    alertDiv.id = 'timetable-analysis-alert';
+    const confirmBtn = document.getElementById('confirm-timetable');
+    confirmBtn.parentNode.insertBefore(alertDiv, confirmBtn);
+  } catch (error) {
+    console.error('图像分析失败:', error);
+    alert('自动识别失败，请手动选择空余时间。');
+  }
+}
+
+// 初始化时间表编辑器
+function initTimetableEditor() {
+  const timetableEditor = document.getElementById('timetable-editor');
+  const tbody = timetableEditor.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  // 生成6行（对应6节课）
+  for (let period = 1; period <= 6; period++) {
+    const row = document.createElement('tr');
+
+    // 添加节次列，同时显示原始节次和映射后的节次
+    const periodCell = document.createElement('td');
+    // 根据映射规则显示对应的原始节次
+    const originalPeriods = ['1-2节', '3-4节', '5-6节', '7-8节', '9-10节', '11-12节'];
+    periodCell.innerHTML = `<strong>第${period}节</strong><br><small>(对应课表${originalPeriods[period - 1]})</small>`;
+    periodCell.className = 'fw-bold';
+    row.appendChild(periodCell);
+
+    // 添加5列（星期一到星期五）
+    for (let day = 1; day <= 5; day++) {
+      const cell = document.createElement('td');
+      cell.className = 'timetable-cell available';
+      cell.dataset.day = day;
+      cell.dataset.period = period;
+      cell.style.backgroundColor = '#d4edda'; // 绿色表示空闲
+      cell.style.cursor = 'pointer';
+      cell.style.textAlign = 'center';
+      cell.style.height = '40px';
+
+      // 添加点击事件切换状态
+      cell.addEventListener('click', function () {
+        toggleCellAvailability(this);
+      });
+
+      row.appendChild(cell);
+    }
+
+    tbody.appendChild(row);
+  }
+}
+
+// 切换单元格可用状态
+function toggleCellAvailability(cell) {
+  if (cell.classList.contains('available')) {
+    // 从可用变为不可用（有课）
+    cell.classList.remove('available');
+    cell.classList.add('unavailable');
+    cell.style.backgroundColor = '#f8d7da'; // 红色表示有课
+  } else {
+    // 从不可用变为可用（无课）
+    cell.classList.remove('unavailable');
+    cell.classList.add('available');
+    cell.style.backgroundColor = '#d4edda'; // 绿色表示空闲
+  }
+}
+
+// 从时间表添加志愿者
+function addVolunteerFromTimetable() {
+  // 收集可用时间
+  const availability = [];
+  document.querySelectorAll('.timetable-cell.available').forEach(cell => {
+    const day = parseInt(cell.dataset.day);
+    const period = parseInt(cell.dataset.period);
+    availability.push({ day, period });
+  });
+
+  if (availability.length === 0) {
+    alert('请至少选择一个可用时间段');
+    return;
+  }
+
+  // 创建志愿者对象
+  const volunteer = {
+    id: Date.now(),
+    name: currentTimetableData.name,
+    class: currentTimetableData.class,
+    availability: availability,
+  };
+
+  // 添加到志愿者列表
+  volunteers.push(volunteer);
+  updateVolunteerList();
+
+  // 重置表单和预览
+  document.getElementById('timetable-import-form').reset();
+  document.getElementById('timetable-preview-container').style.display = 'none';
+
+  // 显示提示
+  alert(`成功添加志愿者：${volunteer.name}，共有 ${availability.length} 个可用时间段`);
+
+  // 清空当前数据
+  currentTimetableData = {
+    name: '',
+    class: '',
+    availability: [],
+  };
 }

@@ -177,4 +177,63 @@ h1, h2, h3, h4, h5, h6 {
     .table-responsive {
         overflow-x: auto;
     }
+}
+
+/* 课表编辑器样式 */
+#timetable-editor {
+    width: 100%;
+    border-collapse: collapse;
+    border: 2px solid #dee2e6;
+}
+
+#timetable-editor th {
+    background-color: #e9ecef;
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+}
+
+#timetable-editor td {
+    text-align: center;
+    vertical-align: middle;
+    padding: 8px;
+    height: 50px;
+    width: 16%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.timetable-cell {
+    position: relative;
+    border: 1px solid #dee2e6;
+}
+
+.timetable-cell:hover {
+    opacity: 0.8;
+}
+
+.timetable-cell.available {
+    background-color: #d4edda !important;
+}
+
+.timetable-cell.unavailable {
+    background-color: #f8d7da !important;
+}
+
+.timetable-cell small {
+    font-size: 11px;
+    display: block;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#timetable-preview-container img {
+    display: block;
+    margin: 0 auto 20px;
+    max-width: 100%;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 } 
