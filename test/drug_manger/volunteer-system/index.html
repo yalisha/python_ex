@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>志愿者排班系统</title>
+
+  <!-- PWA相关元标签 -->
+  <meta name="description" content="一个简单高效的志愿者排班系统，支持导入导出Excel和自动排班功能">
+  <meta name="theme-color" content="#0d6efd">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://files.catbox.moe/zuot2o.png">
+
+  <link rel="stylesheet" href="css/styles.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+  <div class="container mt-4">
+    <h1 class="text-center mb-4">志愿者排班系统</h1>
+
+    <!-- PWA安装按钮 -->
+    <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+      <div class="d-flex align-items-center">
+        <div class="me-3">
+          <strong><i class="bi bi-phone"></i> 将此应用安装到您的设备</strong>
+          <p class="mb-0">安装后可以像原生应用一样使用，支持离线访问</p>
+        </div>
+        <button id="install-pwa" class="btn btn-primary ms-auto">安装应用</button>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <!-- 进度指示器 -->
+    <div class="progress-container mb-4">
+      <ul class="progressbar">
+        <li class="active" id="phase1">志愿者信息</li>
+        <li id="phase2">班次设置</li>
+        <li id="phase3">自动排班</li>
+        <li id="phase4">预览与调整</li>
+      </ul>
+    </div>
+
+    <!-- 阶段1：志愿者信息输入 -->
+    <div id="phase1-content" class="phase-content">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h3>第一阶段：志愿者信息</h3>
+        </div>
+        <div class="card-body">
+          <!-- 添加批量导入和下载模板功能 -->
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header bg-light">
+                  <h5>批量导入志愿者</h5>
+                </div>
+                <div class="card-body">
+                  <p>您可以下载Excel模板，填写后上传导入多名志愿者信息。</p>
+                  <button id="download-template" class="btn btn-outline-primary mb-3">
+                    <i class="bi bi-download"></i> 下载志愿者信息模板
+                  </button>
+                  <div class="mb-3">
+                    <label for="volunteer-file" class="form-label">选择Excel文件</label>
+                    <input type="file" class="form-control" id="volunteer-file" accept=".xlsx,.xls">
+                  </div>
+                  <button id="import-volunteers" class="btn btn-primary">导入志愿者信息</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 添加课表图片导入方式 -->
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header bg-light">
+                  <h5>课表图片导入</h5>
+                </div>
+                <div class="card-body">
+                  <p>上传课表截图，手动标记空余时间（12节课会自动映射为6大节）。</p>
+
+                  <form id="timetable-import-form">
+                    <div class="mb-3">
+                      <label for="timetable-volunteer-name" class="form-label">志愿者姓名</label>
+                      <input type="text" class="form-control" id="timetable-volunteer-name" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="timetable-volunteer-class" class="form-label">志愿者班级</label>
+                      <input type="text" class="form-control" id="timetable-volunteer-class" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="timetable-image" class="form-label">上传课表截图</label>
+                      <input type="file" class="form-control" id="timetable-image" accept="image/*" required>
+                      <small class="text-muted">支持JPG、PNG等常见图片格式</small>
+                    </div>
+
+                    <div class="alert alert-info mb-3">
+                      <strong>课表映射说明：</strong>
+                      <p class="mb-1">系统将12节课自动映射为6大节，映射规则如下：</p>
+                      <ul class="mb-0 small">
+                        <li>原课表的第1-2节 → 系统中的第1大节</li>
+                        <li>原课表的第3-4节 → 系统中的第2大节</li>
+                        <li>原课表的第5-6节 → 系统中的第3大节</li>
+                        <li>原课表的第7-8节 → 系统中的第4大节</li>
+                        <li>原课表的第9-10节 → 系统中的第5大节</li>
+                        <li>原课表的第11-12节 → 系统中的第6大节</li>
+                      </ul>
+                    </div>
+
+                    <button type="button" id="analyze-timetable" class="btn btn-primary">导入课表并编辑</button>
+                  </form>
+
+                  <!-- 预览和编辑区域 -->
+                  <div id="timetable-preview-container" class="mt-4" style="display: none;">
+                    <h6>课表预览与编辑</h6>
+                    <p class="text-muted small">请在下面的表格中确认您的课程时间（有课=红色，无课=绿色）。点击格子可以切换状态。</p>
+
+                    <div class="table-responsive">
+                      <table id="timetable-editor" class="table table-bordered table-sm">
+                        <thead>
+                          <tr>
+                            <th>节次</th>
+                            <th>星期一</th>
+                            <th>星期二</th>
+                            <th>星期三</th>
+                            <th>星期四</th>
+                            <th>星期五</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <!-- 动态生成的时间表编辑器 -->
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-3">
+                      <button type="button" id="confirm-timetable" class="btn btn-success">确认并添加志愿者</button>
+                      <button type="button" id="continue-adding" class="btn btn-outline-primary">添加后继续导入下一位</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header bg-light">
+                  <h5>手动添加志愿者</h5>
+                </div>
+                <div class="card-body">
+                  <p>您也可以手动逐个添加志愿者信息。</p>
+                  <form id="volunteer-form">
+                    <div class="mb-3">
+                      <label for="volunteer-name" class="form-label">志愿者姓名</label>
+                      <input type="text" class="form-control" id="volunteer-name" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="volunteer-class" class="form-label">志愿者班级</label>
+                      <input type="text" class="form-control" id="volunteer-class" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <h5>请选择志愿者可用的时间段</h5>
+                      <table class="table table-bordered schedule-table">
+                        <thead>
+                          <tr>
+                            <th>时间段</th>
+                            <th>星期一</th>
+                            <th>星期二</th>
+                            <th>星期三</th>
+                            <th>星期四</th>
+                            <th>星期五</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <!-- 1-6节课 -->
+                          <tr data-period="1">
+                            <td>第1节</td>
+                            <td><input type="checkbox" data-day="1" data-period="1"></td>
+                            <td><input type="checkbox" data-day="2" data-period="1"></td>
+                            <td><input type="checkbox" data-day="3" data-period="1"></td>
+                            <td><input type="checkbox" data-day="4" data-period="1"></td>
+                            <td><input type="checkbox" data-day="5" data-period="1"></td>
+                          </tr>
+                          <tr data-period="2">
+                            <td>第2节</td>
+                            <td><input type="checkbox" data-day="1" data-period="2"></td>
+                            <td><input type="checkbox" data-day="2" data-period="2"></td>
+                            <td><input type="checkbox" data-day="3" data-period="2"></td>
+                            <td><input type="checkbox" data-day="4" data-period="2"></td>
+                            <td><input type="checkbox" data-day="5" data-period="2"></td>
+                          </tr>
+                          <tr data-period="3">
+                            <td>第3节</td>
+                            <td><input type="checkbox" data-day="1" data-period="3"></td>
+                            <td><input type="checkbox" data-day="2" data-period="3"></td>
+                            <td><input type="checkbox" data-day="3" data-period="3"></td>
+                            <td><input type="checkbox" data-day="4" data-period="3"></td>
+                            <td><input type="checkbox" data-day="5" data-period="3"></td>
+                          </tr>
+                          <tr data-period="4">
+                            <td>第4节</td>
+                            <td><input type="checkbox" data-day="1" data-period="4"></td>
+                            <td><input type="checkbox" data-day="2" data-period="4"></td>
+                            <td><input type="checkbox" data-day="3" data-period="4"></td>
+                            <td><input type="checkbox" data-day="4" data-period="4"></td>
+                            <td><input type="checkbox" data-day="5" data-period="4"></td>
+                          </tr>
+                          <tr data-period="5">
+                            <td>第5节</td>
+                            <td><input type="checkbox" data-day="1" data-period="5"></td>
+                            <td><input type="checkbox" data-day="2" data-period="5"></td>
+                            <td><input type="checkbox" data-day="3" data-period="5"></td>
+                            <td><input type="checkbox" data-day="4" data-period="5"></td>
+                            <td><input type="checkbox" data-day="5" data-period="5"></td>
+                          </tr>
+                          <tr data-period="6">
+                            <td>第6节</td>
+                            <td><input type="checkbox" data-day="1" data-period="6"></td>
+                            <td><input type="checkbox" data-day="2" data-period="6"></td>
+                            <td><input type="checkbox" data-day="3" data-period="6"></td>
+                            <td><input type="checkbox" data-day="4" data-period="6"></td>
+                            <td><input type="checkbox" data-day="5" data-period="6"></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">添加志愿者</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header bg-light">
+              <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">已添加的志愿者</h5>
+                <div>
+                  <button id="clear-all-data" class="btn btn-sm btn-danger me-2">一键清空所有数据</button>
+                  <button id="export-volunteers" class="btn btn-sm btn-outline-secondary">导出志愿者信息</button>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <ul id="volunteer-list" class="list-group">
+                <!-- 动态生成的志愿者列表 -->
+              </ul>
+
+              <div class="mt-4 text-end">
+                <button id="phase1-next" class="btn btn-success">下一步</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 阶段2：班次设置 -->
+    <div id="phase2-content" class="phase-content" style="display: none;">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h3>第二阶段：班次设置</h3>
+        </div>
+        <div class="card-body">
+          <p>请设置每个班次需要的志愿者人数。如果某个班次不需要排班，请将人数设为0。</p>
+
+          <!-- 添加批量设置功能 -->
+          <div class="card mb-3">
+            <div class="card-body bg-light">
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <label for="bulk-set-count" class="form-label mb-0">批量设置所有班次人数:</label>
+                </div>
+                <div class="col-md-3">
+                  <input type="number" min="0" value="1" class="form-control" id="bulk-set-count">
+                </div>
+                <div class="col-md-3">
+                  <button id="apply-bulk-set" class="btn btn-secondary">应用到所有班次</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 添加班级数量限制设置 -->
+          <div class="card mb-3">
+            <div class="card-body bg-light">
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <label for="bulk-set-class-count" class="form-label mb-0">批量设置所有班次班级数量限制:</label>
+                  <small class="text-muted d-block">限制每个班次最少需要包含多少个不同班级的志愿者</small>
+                </div>
+                <div class="col-md-3">
+                  <input type="number" min="0" value="0" class="form-control" id="bulk-set-class-count">
+                  <small class="text-muted d-block">0表示不限制班级数量</small>
+                </div>
+                <div class="col-md-3">
+                  <button id="apply-bulk-set-class" class="btn btn-secondary">应用到所有班次</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 添加每个志愿者最大排班次数设置 -->
+          <div class="card mb-3">
+            <div class="card-body bg-light">
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <label for="max-shifts-per-volunteer" class="form-label mb-0">每个志愿者最大排班次数:</label>
+                  <small class="text-muted d-block">限制每个志愿者最多可以被排几次班</small>
+                </div>
+                <div class="col-md-6">
+                  <input type="number" min="0" value="0" class="form-control" id="max-shifts-per-volunteer">
+                  <small class="text-muted d-block">0表示不限制排班次数</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <table class="table table-bordered schedule-table">
+            <thead>
+              <tr>
+                <th>时间段</th>
+                <th colspan="2">星期一</th>
+                <th colspan="2">星期二</th>
+                <th colspan="2">星期三</th>
+                <th colspan="2">星期四</th>
+                <th colspan="2">星期五</th>
+              </tr>
+              <tr>
+                <th></th>
+                <th>人数</th>
+                <th>班级数</th>
+                <th>人数</th>
+                <th>班级数</th>
+                <th>人数</th>
+                <th>班级数</th>
+                <th>人数</th>
+                <th>班级数</th>
+                <th>人数</th>
+                <th>班级数</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 1-6节课 -->
+              <tr data-period="1">
+                <td>第1节</td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="1"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
+                    data-period="1"></td>
+              </tr>
+              <tr data-period="2">
+                <td>第2节</td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="2"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
+                    data-period="2"></td>
+              </tr>
+              <tr data-period="3">
+                <td>第3节</td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="3"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
+                    data-period="3"></td>
+              </tr>
+              <tr data-period="4">
+                <td>第4节</td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="4"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
+                    data-period="4"></td>
+              </tr>
+              <tr data-period="5">
+                <td>第5节</td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="5"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
+                    data-period="5"></td>
+              </tr>
+              <tr data-period="6">
+                <td>第6节</td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="1"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="1"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="2"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="2"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="3"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="3"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="4"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="4"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="1" class="form-control shift-count" data-day="5"
+                    data-period="6"></td>
+                <td><input type="number" min="0" value="0" class="form-control shift-class-count" data-day="5"
+                    data-period="6"></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="mt-4 text-end">
+            <button id="phase2-prev" class="btn btn-secondary me-2">上一步</button>
+            <button id="phase2-next" class="btn btn-success">下一步</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 阶段3：自动排班 -->
+    <div id="phase3-content" class="phase-content" style="display: none;">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h3>第三阶段：自动排班</h3>
+        </div>
+        <div class="card-body">
+          <p>点击"开始排班"按钮，系统将根据志愿者的可用时间和班次需求自动排班。</p>
+          <p>排班策略：</p>
+          <ul>
+            <li>尽量均匀分配每个志愿者的班次</li>
+            <li>优先满足需要志愿者人数较多的班次</li>
+            <li>尽量避免志愿者连续排班</li>
+          </ul>
+
+          <div class="mt-4 text-center">
+            <button id="start-scheduling" class="btn btn-primary btn-lg">开始排班</button>
+            <div id="scheduling-result" class="mt-3"></div>
+          </div>
+
+          <div class="mt-4 text-end">
+            <button id="phase3-prev" class="btn btn-secondary me-2">上一步</button>
+            <button id="phase3-next" class="btn btn-success">下一步</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 阶段4：预览与调整 -->
+    <div id="phase4-content" class="phase-content" style="display: none;">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h3>第四阶段：预览与调整</h3>
+        </div>
+        <div class="card-body">
+          <p>以下是排班结果预览，您可以直接在表格中调整志愿者名单。点击单元格可修改志愿者。</p>
+
+          <div class="table-responsive">
+            <table id="schedule-preview" class="table table-bordered">
+              <thead>
+                <tr>
+                  <th>时间段</th>
+                  <th>星期一</th>
+                  <th>星期二</th>
+                  <th>星期三</th>
+                  <th>星期四</th>
+                  <th>星期五</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- 动态生成的排班表 -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-4">
+            <button id="download-excel" class="btn btn-success">下载Excel表格</button>
+            <button id="save-schedule" class="btn btn-primary ms-2">保存排班表</button>
+          </div>
+
+          <div class="mt-4 text-end">
+            <button id="phase4-prev" class="btn btn-secondary">上一步</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="troubleshootModal" tabindex="-1" aria-labelledby="troubleshootModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="troubleshootModalLabel">常见问题排查</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <h6>如果您在使用过程中遇到问题，请尝试以下解决方法：</h6>
+          <ol>
+            <li>确保使用最新版本的Chrome、Firefox或Edge浏览器</li>
+            <li>清除浏览器缓存和Cookie后重试</li>
+            <li>检查浏览器是否允许JavaScript执行和本地存储</li>
+            <li>确保稳定的网络连接以加载所需资源</li>
+            <li>如果上述方法无效，请尝试在其他设备上使用</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加一个帮助按钮 -->
+  <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#troubleshootModal">
+    <i class="bi bi-question-circle"></i> 遇到问题？
+  </button>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // 检测浏览器版本过低或不兼容的情况
+      const isIE = !!document.documentMode;
+      if (isIE) {
+        alert("检测到您使用的是Internet Explorer，建议使用Chrome、Firefox或Edge以获得最佳体验");
+      }
+
+      function isLocalStorageAvailable() {
+        try {
+          const test = '__test__';
+          localStorage.setItem(test, test);
+          localStorage.removeItem(test);
+          return true;
+        } catch (e) {
+          console.error("localStorage不可用:", e);
+          return false;
+        }
+      }
+
+      // 在页面加载时检查
+      if (!isLocalStorageAvailable()) {
+        alert("本应用需要浏览器存储功能，请确保未禁用Cookie和本地存储，或尝试使用其他浏览器。");
+      }
+
+      if (typeof XLSX === 'undefined') {
+        alert("Excel处理库未正确加载，这可能导致部分功能无法使用。请检查网络连接并刷新页面。");
+      }
+    });
+
+    window.onerror = function (message, source, lineno, colno, error) {
+      console.error("发生错误:", message, "在文件:", source, "行:", lineno);
+      alert("系统遇到错误，请刷新页面重试。若问题持续，请联系管理员。");
+      return true;
+    };
+
+    // 创建简单的日志收集系统
+    const logBuffer = [];
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+
+    console.log = function () {
+      logBuffer.push({ type: 'log', args: Array.from(arguments), time: new Date().toISOString() });
+      originalConsoleLog.apply(console, arguments);
+    };
+
+    console.error = function () {
+      logBuffer.push({ type: 'error', args: Array.from(arguments), time: new Date().toISOString() });
+      originalConsoleError.apply(console, arguments);
+    };
+
+    // 添加导出日志功能
+    function exportLogs() {
+      const logText = logBuffer.map(entry =>
+        `[${entry.time}] [${entry.type}] ${entry.args.map(arg =>
+          typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ')}`
+      ).join('\n');
+
+      const blob = new Blob([logText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `volunteer-scheduler-logs-${new Date().toISOString()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      L.rtURL(url);
+    }
+
+    // 添加导出日志的按钮到界面中的适当位置
+  </script>
+
+  <!-- PWA Service Worker注册 -->
+  <script>
+    // 检查浏览器是否支持Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js')
+          .then(function (registration) {
+            console.log('Service Worker 注册成功，作用域为:', registration.scope);
+          })
+          .catch(function (error) {
+            console.error('Seice Wo失败:', error);
+          });
+      });
+    }
+  </script>
+
+  <!-- PWA安装脚本 -->
+  <script src="pwa-installer.js"></script>
+</body>
+
+</html>
